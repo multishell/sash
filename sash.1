@@ -22,11 +22,11 @@ is that many of the standard system commands are built-in to
 These built-in commands are:
 .PP
 .nf
-     -ar, -chattr, -chgrp, -chmod, -chown, -cmp, -cp,
-     -dd, -echo, -ed, -grep, -file, -find, -gunzip,
-     -gzip, -kill, -ln, -ls, -lsattr, -mkdir, -mknod,
-     -more, -mount, -mv, -printenv, -pwd, -rm, -rmdir,
-     -sum, -sync, -tar, -touch, -umount, -where
+     -ar, -chattr, -chgrp, -chmod, -chown, -chroot, -cmp,
+     -cp, -dd, -echo, -ed, -grep, -file, -find, -gunzip,
+     -gzip, -kill, -losetup, -ln, -ls, -lsattr, -mkdir,
+     -mknod, -more, -mount, -mv, -pivot_root, -printenv, -pwd,
+     -rm, -rmdir, -sum, -sync, -tar, -touch, -umount, -where
 .fi
 .PP
 These commands are generally similar to the standard programs with similar
@@ -137,6 +137,13 @@ Change the owner id for the specified list of files.  The
 .I uid
 can
 either be a user name, or a decimal value.
+.TP
+.B -chroot path
+Changes  the  root  directory to that specified in
+.I path.
+This directory
+will be used for path  names  beginning with /. The root directory is
+inherited by all children of the current process.
 .TP
 .B -cmp fileName1 fileName2
 Determines whether or not the specified file names have identical data.
@@ -312,6 +319,20 @@ is a numeric value, or one of the special values HUP, INT,
 QUIT, KILL, TERM, STOP, CONT, USR1 or USR2.
 If no signal is specified then SIGTERM is used.
 .TP
+.B -losetup [-d] loopDev [file]
+Associates loopback devices with files on the system. If
+.I -d
+is not given,
+the loopback device
+.I loopDev
+is associated with
+.I file.
+If
+.I -d
+is given,
+.I loopDev
+is unassociated with the file it's currently configured for.
+.TP
 .B -ln [-s] srcName ... destName
 Links one or more files from the
 .I srcName
@@ -384,6 +405,13 @@ the srcNames are copied into the destination directory with the
 same names as the srcNames.  Renames are attempted first, but if
 this fails because of the files being on different filesystems,
 then copies and deletes are done instead.
+.TP
+.B -pivot_root newRoot putOld
+Moves the root file system of the current process to the directory
+.I putOld
+and makes
+.I newRoot
+the  new root file system of the current process.
 .TP
 .B -printenv [name]
 If
