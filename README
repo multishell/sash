@@ -1,0 +1,21 @@
+This is release 3.4 of sash, my stand-alone shell for Linux.
+
+The purpose of this program is to make system recovery possible in
+many cases where there are missing shared libraries or executables.
+It does this by firstly being linked statically, and secondly by
+including versions of many of the standard utilities within itself.
+Read the sash.1 documentation for more details.
+
+This version has the "-ar" built-in command for extracting files
+from archive files.  This is used for unpacking Debian packages.
+Thanks to Aaron R. Crane for donating the code for this command
+(highly modified by me).
+
+Type "make install" to build and install the program and man page.
+
+Some warning messages may appear when compiling cmds.c under Linux from
+the mount.h and fs.h include files.  These warnings can be ignored.
+
+David I. Bell
+dbell@canb.auug.org.au
+2 October 1999
