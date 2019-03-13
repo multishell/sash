@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002 by David I. Bell
+ * Copyright (c) 2014 by David I. Bell
  * Permission is granted to use, distribute, or modify this source,
  * provided that this copyright notice remains intact.
  *
@@ -87,12 +87,12 @@ static	ino_t		tarInode;
 /*
  * Local procedures to restore files from a tar file.
  */
-static	void	readTarFile(int fileCount, const char ** fileTable);
-static	void	readData(const char * cp, int count);
-static	void	createPath(const char * name, int mode);
+static	BOOL	readTarFile(int fileCount, const char ** fileTable);
+static	BOOL	readData(const char * cp, int count);
+static	BOOL	createPath(const char * name, int mode);
 static	long	getOctal(const char * cp, int len);
 
-static	void	readHeader(const TarHeader * hp,
+static	BOOL	readHeader(const TarHeader * hp,
 			int fileCount, const char ** fileTable);
 
 
@@ -113,16 +113,17 @@ static	BOOL	wantFileName(const char * fileName,
 static	void	writeHeader(const char * fileName,
 			const struct stat * statbuf);
 
-static	void	writeTarFile(int fileCount, const char ** fileTable);
+static	BOOL	writeTarFile(int fileCount, const char ** fileTable);
 static	void	writeTarBlock(const char * buf, int len);
 static	BOOL	putOctal(char * cp, int len, long value);
 
 
 
-void
+int
 do_tar(int argc, const char ** argv)
 {
 	const char *	options;
+	BOOL		successFlag;
 
 	argc--;
 	argv++;
@@ -131,7 +132,7 @@ do_tar(int argc, const char ** argv)
 	{
 		fprintf(stderr, "Too few arguments for tar\n");
 
-		return;
+		return 1;
 	}
 
 	extractFlag = FALSE;
@@ -158,7 +159,7 @@ do_tar(int argc, const char ** argv)
 				{
 					fprintf(stderr, "Only one 'f' option allowed\n");
 
-					return;
+					return 1;
 				}
 
 				tarName = *argv++;
@@ -185,7 +186,7 @@ do_tar(int argc, const char ** argv)
 			default:
 				fprintf(stderr, "Unknown tar flag '%c'\n", *options);
 
-				return;
+				return 1;
 		}
 	}
 
@@ -196,14 +197,14 @@ do_tar(int argc, const char ** argv)
 	{
 		fprintf(stderr, "Exactly one of 'c', 'x' or 't' must be specified\n");
 
-		return;
+		return 1;
 	}
 
 	if (tarName == NULL)
 	{
 		fprintf(stderr, "The 'f' flag must be specified\n");
 
-		return;
+		return 1;
 	}
 
 	/*
@@ -211,20 +212,24 @@ do_tar(int argc, const char ** argv)
 	 * command line arguments as the list of files to process.
 	 */
 	if (createFlag)
-		writeTarFile(argc, argv);
+		successFlag = writeTarFile(argc, argv);
 	else
-		readTarFile(argc, argv);
+		successFlag = readTarFile(argc, argv);
+
+	return !successFlag;
 }
 
 
 /*
  * Read a tar file and extract or list the specified files within it.
  * If the list is empty than all files are extracted or listed.
+ * Returns TRUE on success.
  */
-static void
+static BOOL
 readTarFile(int fileCount, const char ** fileTable)
 {
 	const char *	cp;
+	BOOL		successFlag;
 	int		cc;
 	int		inCc;
 	int		blockSize;
@@ -235,6 +240,8 @@ readTarFile(int fileCount, const char ** fileTable)
 	warnedRoot = FALSE;
 	eofFlag = FALSE;
 	inHeader = TRUE;
+	successFlag = TRUE;
+
 	inCc = 0;
 	dataCc = 0;
 	outFd = -1;
@@ -250,7 +257,7 @@ readTarFile(int fileCount, const char ** fileTable)
 	{
 		perror(tarName);
 
-		return;
+		return FALSE;
 	}
 
 	/*
@@ -272,6 +279,7 @@ readTarFile(int fileCount, const char ** fileTable)
 			if (inCc < 0)
 			{
 				perror(tarName);
+				successFlag = FALSE;
 
 				goto done;
 			}
@@ -281,6 +289,7 @@ readTarFile(int fileCount, const char ** fileTable)
 				fprintf(stderr,
 					"Unexpected end of file from \"%s\"",
 					tarName);
+				successFlag = FALSE;
 
 				goto done;
 			}
@@ -291,7 +300,8 @@ readTarFile(int fileCount, const char ** fileTable)
 		 */
 		if (inHeader)
 		{
-			readHeader((const TarHeader *) cp, fileCount, fileTable);
+			if (!readHeader((const TarHeader *) cp, fileCount, fileTable))
+				successFlag = FALSE;
 
 			cp += TAR_BLOCK_SIZE;
 			inCc -= TAR_BLOCK_SIZE;
@@ -309,7 +319,8 @@ readTarFile(int fileCount, const char ** fileTable)
 		if (cc > dataCc)
 			cc = dataCc;
 
-		readData(cp, cc);
+		if (!readData(cp, cc))
+			successFlag = FALSE;
 
 		/*
 		 * If the amount left isn't an exact multiple of the tar block
@@ -327,15 +338,20 @@ readTarFile(int fileCount, const char ** fileTable)
 	 * Check for an interrupt.
 	 */
 	if (intFlag)
+	{
 		fprintf(stderr, "Interrupted - aborting\n");
-
+		successFlag = FALSE;
+	}
 
 done:
 	/*
 	 * Close the tar file if needed.
 	 */
 	if ((tarFd >= 0) && (close(tarFd) < 0))
+	{
 		perror(tarName);
+		successFlag = FALSE;
+	}
 
 	/*
 	 * Close the output file if needed.
@@ -344,21 +360,22 @@ done:
 	 */
 	if (outFd >= 0)
 		(void) close(outFd);
+
+	return successFlag;
 }
 
 
 /*
  * Examine the header block that was just read.
  * This can specify the information for another file, or it can mark
- * the end of the tar file.
+ * the end of the tar file.  Returns TRUE on success.
  */
-static void
+static BOOL
 readHeader(const TarHeader * hp, int fileCount, const char ** fileTable)
 {
 	int		mode;
 	int		uid;
 	int		gid;
-	int		checkSum;
 	long		size;
 	time_t		mtime;
 	const char *	name;
@@ -377,12 +394,12 @@ readHeader(const TarHeader * hp, int fileCount, const char ** fileTable)
 		for (cc = TAR_BLOCK_SIZE; cc > 0; cc--)
 		{
 			if (*name++)
-				return;
+				return TRUE;
 		}
 
 		eofFlag = TRUE;
 
-		return;
+		return TRUE;
 	}
 
 	/*
@@ -394,7 +411,6 @@ readHeader(const TarHeader * hp, int fileCount, const char ** fileTable)
 	gid = getOctal(hp->gid, sizeof(hp->gid));
 	size = getOctal(hp->size, sizeof(hp->size));
 	mtime = getOctal(hp->mtime, sizeof(hp->mtime));
-	checkSum = getOctal(hp->checkSum, sizeof(hp->checkSum));
 
 	if ((mode < 0) || (uid < 0) || (gid < 0) || (size < 0))
 	{
@@ -403,7 +419,7 @@ readHeader(const TarHeader * hp, int fileCount, const char ** fileTable)
 
 		badHeader = TRUE;
 
-		return;
+		return FALSE;
 	}
 
 	badHeader = FALSE;
@@ -458,7 +474,7 @@ readHeader(const TarHeader * hp, int fileCount, const char ** fileTable)
 
 		skipFileFlag = TRUE;
 
-		return;
+		return TRUE;
 	}
 
 	/*
@@ -487,7 +503,7 @@ readHeader(const TarHeader * hp, int fileCount, const char ** fileTable)
 
 		printf("\n");
 
-		return;
+		return TRUE;
 	}
 
 	/*
@@ -499,37 +515,43 @@ readHeader(const TarHeader * hp, int fileCount, const char ** fileTable)
 	if (hardLink)
 	{
 		if (link(hp->linkName, name) < 0)
+		{
 			perror(name);
+			return FALSE;
+		}
 
-		return;
+		return TRUE;
 	}
 
 	if (softLink)
 	{
 #ifdef	S_ISLNK
 		if (symlink(hp->linkName, name) < 0)
+		{
 			perror(name);
+
+			return FALSE;
+		}
+
+		return TRUE;
 #else
 		fprintf(stderr, "Cannot create symbolic links\n");
 #endif
-		return;
+		return FALSE;
 	}
 
 	/*
 	 * If the file is a directory, then just create the path.
 	 */
 	if (S_ISDIR(mode))
-	{
-		createPath(name, mode);
-
-		return;
-	}
+		return createPath(name, mode);
 
 	/*
 	 * There is a file to write.
 	 * First create the path to it if necessary with a default permission.
 	 */
-	createPath(name, 0777);
+	if (!createPath(name, 0777))
+		return FALSE;
 
 	inHeader = (size == 0);
 	dataCc = size;
@@ -544,7 +566,7 @@ readHeader(const TarHeader * hp, int fileCount, const char ** fileTable)
 		perror(name);
 		skipFileFlag = TRUE;
 
-		return;
+		return FALSE;
 	}
 
 	/*
@@ -555,13 +577,16 @@ readHeader(const TarHeader * hp, int fileCount, const char ** fileTable)
 		(void) close(outFd);
 		outFd = -1;
 	}
+
+	return TRUE;
 }
 
 
 /*
  * Handle a data block of some specified size that was read.
+ * Returns TRUE on success.
  */
-static void
+static BOOL
 readData(const char * cp, int count)
 {
 	/*
@@ -579,7 +604,7 @@ readData(const char * cp, int count)
 	 * skipped then do nothing more.
 	 */
 	if (!extractFlag || skipFileFlag)
-		return;
+		return TRUE;
 
 	/*
 	 * Write the data to the output file.
@@ -591,7 +616,7 @@ readData(const char * cp, int count)
 		outFd = -1;
 		skipFileFlag = TRUE;
 
-		return;
+		return FALSE;
 	}
 
 	/*
@@ -604,18 +629,25 @@ readData(const char * cp, int count)
 			perror(outName);
 
 		outFd = -1;
+
+		return FALSE;
 	}
+
+	return TRUE;
 }
 
 
 /*
  * Write a tar file containing the specified files.
+ * Returns TRUE on success.
  */
-static void
+static BOOL
 writeTarFile(int fileCount, const char ** fileTable)
 {
 	struct	stat	statbuf;
+	BOOL		successFlag;
 
+	successFlag = TRUE;
 	errorFlag = FALSE;
 
 	/*
@@ -625,7 +657,7 @@ writeTarFile(int fileCount, const char ** fileTable)
 	{
 		fprintf(stderr, "No files specified to be saved\n");
 
-		return;
+		return FALSE;
 	}
 
 	/*
@@ -637,7 +669,7 @@ writeTarFile(int fileCount, const char ** fileTable)
 	{
 		perror(tarName);
 
-		return;
+		return FALSE;
 	}
 
 	/*
@@ -646,6 +678,7 @@ writeTarFile(int fileCount, const char ** fileTable)
 	if (fstat(tarFd, &statbuf) < 0)
 	{
 		perror(tarName);
+		successFlag = FALSE;
 
 		goto done;
 	}
@@ -663,7 +696,10 @@ writeTarFile(int fileCount, const char ** fileTable)
 	}
 
 	if (intFlag)
+	{
 		fprintf(stderr, "Interrupted - aborting archiving\n");
+		successFlag = FALSE;
+	}
 
 	/*
 	 * Now write an empty block of zeroes to end the archive.
@@ -676,7 +712,12 @@ done:
 	 * Close the tar file and check for errors if it was opened.
 	 */
 	if ((tarFd >= 0) && (close(tarFd) < 0))
+	{
 		perror(tarName);
+		successFlag = FALSE;
+	}
+
+	return successFlag;
 }
 
 
@@ -1066,8 +1107,9 @@ writeTarBlock(const char * buf, int len)
  * the final component.  The mode is given for the final directory only,
  * while all previous ones get default protections.  Errors are not reported
  * here, as failures to restore files can be reported later.
+ * Returns TRUE on success.
  */
-static void
+static BOOL
 createPath(const char * name, int mode)
 {
 	char *	cp;
@@ -1090,6 +1132,8 @@ createPath(const char * name, int mode)
 
 		*cpOld = '/';
 	}
+
+	return TRUE;
 }
 
 

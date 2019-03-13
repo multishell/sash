@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002 by David I. Bell
+ * Copyright (c) 2014 by David I. Bell
  * Permission is granted to use, distribute, or modify this source,
  * provided that this copyright notice remains intact.
  *
@@ -244,7 +244,7 @@ copyFile(
 		goto error_exit;
 	}
 
-	(void) close(rfd);
+	checkStatus("close", close(rfd));
 
 	if (close(wfd) < 0)
 	{
@@ -255,14 +255,14 @@ copyFile(
 
 	if (setModes)
 	{
-		(void) chmod(destName, statBuf1.st_mode);
+		checkStatus("chmod", chmod(destName, statBuf1.st_mode));
 
-		(void) chown(destName, statBuf1.st_uid, statBuf1.st_gid);
+		checkStatus("chown", chown(destName, statBuf1.st_uid, statBuf1.st_gid));
 
 		times.actime = statBuf1.st_atime;
 		times.modtime = statBuf1.st_mtime;
 
-		(void) utime(destName, &times);
+		checkStatus("utime", utime(destName, &times));
 	}
 
 	return TRUE;
@@ -1030,6 +1030,26 @@ freeChunks(void)
 
 
 /*
+ * Try writing data to the specified file descriptor.
+ * Only the first write error if any is printed.
+ * This is used when writing to STDOUT.
+ */
+void
+tryWrite(int fd, const char * cp, int len)
+{
+	static int failed = FALSE;
+
+	int status = fullWrite(fd, cp, len);
+
+	if ((status < 0) && !failed)
+	{
+		failed = TRUE;
+		perror("write");
+	}
+}
+
+
+/*
  * Write all of the supplied buffer out to a file.
  * This does multiple writes as necessary.
  * Returns the amount written, or -1 on an error.
@@ -1088,6 +1108,37 @@ fullRead(int fd, char * buf, int len)
 	}
 
 	return total;
+}
+
+
+/*
+ * Call system for the specified command and print an error
+ * message if the execution fails.  The exit status of the
+ * command is returned.
+ */
+int
+trySystem(const char * cmd)
+{
+	int status;
+
+	status = system(cmd);
+
+	if (status == -1)
+		fprintf(stderr, "Error starting command: %s\n", cmd);
+
+	return status;
+}
+
+
+/*
+ * Check the status for the most recent system call and complain
+ * if its value is -1 which indicates it failed.
+ */
+void
+checkStatus(const char * name, int status)
+{
+	if (status == -1)
+		perror(name);
 }
 
 /* END CODE */

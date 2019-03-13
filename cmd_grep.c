@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002 by David I. Bell
+ * Copyright (c) 2014 by David I. Bell
  * Permission is granted to use, distribute, or modify this source,
  * provided that this copyright notice remains intact.
  *
@@ -15,7 +15,7 @@ static	BOOL	search
 	(const char * string, const char * word, BOOL ignoreCase);
 
 
-void
+int
 do_grep(int argc, const char ** argv)
 {
 	FILE *		fp;
@@ -27,7 +27,9 @@ do_grep(int argc, const char ** argv)
 	BOOL		tellLine;
 	long		line;
 	char		buf[BUF_SIZE];
+	int		r;
 
+	r = 1;
 	ignoreCase = FALSE;
 	tellLine = FALSE;
 
@@ -52,7 +54,7 @@ do_grep(int argc, const char ** argv)
 			default:
 				fprintf(stderr, "Unknown option\n");
 
-				return;
+				return 1;
 		}
 	}
 
@@ -70,6 +72,7 @@ do_grep(int argc, const char ** argv)
 		if (fp == NULL)
 		{
 			perror(name);
+			r = 1;
 
 			continue;
 		}
@@ -82,7 +85,7 @@ do_grep(int argc, const char ** argv)
 			{
 				fclose(fp);
 
-				return;
+				return 1;
 			}
 
 			line++;
@@ -94,6 +97,7 @@ do_grep(int argc, const char ** argv)
 
 			if (search(buf, word, ignoreCase))
 			{
+				r = 0;
 				if (tellName)
 					printf("%s: ", name);
 
@@ -109,6 +113,8 @@ do_grep(int argc, const char ** argv)
 
 		fclose(fp);
 	}
+
+	return r;
 }
 
 

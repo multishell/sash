@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002 by David I. Bell
+ * Copyright (c) 2014 by David I. Bell
  * Permission is granted to use, distribute, or modify this source,
  * provided that this copyright notice remains intact.
  *
@@ -12,7 +12,15 @@
 
 #include <sys/ioctl.h>
 #include <sys/types.h>
-#include <linux/ext2_fs.h>
+
+/*
+ * These were used for old linux versions.
+ * #include <linux/fs.h>
+ * #include <linux/ext2_fs.h>
+ */
+
+#include <ext2fs/ext2_fs.h>
+
 
 #include "sash.h"
 
@@ -21,7 +29,7 @@
  * The chattr command.
  * This can turn on or off the immutable and append-only ext2 flags.
  */
-void
+int
 do_chattr(int argc, const char ** argv)
 {
 	const char *	fileName;
@@ -32,7 +40,9 @@ do_chattr(int argc, const char ** argv)
 	int		oldFlags;
 	int		newFlags;
 	int		fd;
+	int		r;
 
+	r = 0;
 	argc--;
 	argv++;
 
@@ -74,7 +84,7 @@ do_chattr(int argc, const char ** argv)
 					fprintf(stderr, "Unknown flag '%c'\n",
 						options[-1]);
 
-					return;
+					return 1;
 			}
 		}
 	}
@@ -86,14 +96,14 @@ do_chattr(int argc, const char ** argv)
 	{
 		fprintf(stderr, "No attributes specified\n");
 
-		return;
+		return 1;
 	}
 
 	if ((onFlags & offFlags) != 0)
 	{
 		fprintf(stderr, "Inconsistent attributes specified\n");
 
-		return;
+		return 1;
 	}
 
 	/*
@@ -103,7 +113,7 @@ do_chattr(int argc, const char ** argv)
 	{
 		fprintf(stderr, "No files specified for setting attributes\n");
 
-		return;
+		return 1;
 	}
 
 	/*
@@ -121,7 +131,7 @@ do_chattr(int argc, const char ** argv)
 		if (fd < 0)
 		{
 			perror(fileName);
-
+			r = 1;
 			continue;
 		}
 
@@ -131,7 +141,7 @@ do_chattr(int argc, const char ** argv)
 		if (ioctl(fd, EXT2_IOC_GETFLAGS, &oldFlags) < 0)
 		{
 			perror(fileName);
-
+			r = 1;
 			(void) close(fd);
 
 			continue;
@@ -161,7 +171,7 @@ do_chattr(int argc, const char ** argv)
 		if (ioctl(fd, EXT2_IOC_SETFLAGS, &newFlags) < 0)
 		{
 			perror(fileName);
-
+			r = 1;
 			(void) close(fd);
 
 			continue;
@@ -172,6 +182,8 @@ do_chattr(int argc, const char ** argv)
 		 */
 		(void) close(fd);
 	}
+
+	return r;
 }
 
 
@@ -179,15 +191,17 @@ do_chattr(int argc, const char ** argv)
  * The lsattr command.
  * This lists the immutable and append-only ext2 flags.
  */
-void
+int
 do_lsattr(int argc, const char ** argv)
 {
 	const char *	fileName;
+	int		r;
 	int		fd;
 	int		status;
 	int		flags;
 	char		string[4];
 
+	r = 0;
 	argc--;
 	argv++;
 
@@ -206,7 +220,7 @@ do_lsattr(int argc, const char ** argv)
 		if (fd < 0)
 		{
 			perror(fileName);
-
+			r = 1;
 			continue;
 		}
 
@@ -223,6 +237,7 @@ do_lsattr(int argc, const char ** argv)
 		if (status < 0)
 		{
 			perror(fileName);
+			r = 1;
 
 			continue;
 		}
@@ -240,6 +255,8 @@ do_lsattr(int argc, const char ** argv)
 		 */
 		printf("%s  %s\n", string, fileName);
 	}
+
+	return r;
 }
 
 #endif

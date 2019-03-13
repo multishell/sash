@@ -5,7 +5,7 @@
  * provided that this copyright notice remains intact.
  *
  * Modified:
- * Copyright (c) 2002 by David I. Bell
+ * Copyright (c) 2014 by David I. Bell
  * Permission is granted to use, distribute, or modify this source,
  * provided that this copyright notice remains intact.
  *
@@ -32,22 +32,22 @@
  */
 typedef struct
 {
-	int		fd;		/* file reading archive from */
-	BOOL		eof;		/* end of file has been seen */
-	BOOL		rescan;		/* rescan the header just read */
-	unsigned char *	nameTable;	/* long name table */
+	int	fd;		/* file reading archive from */
+	BOOL	eof;		/* end of file has been seen */
+	BOOL	rescan;		/* rescan the header just read */
+	char *	nameTable;	/* long name table */
 
 	/*
 	 * Information about the current file read from the archive.
 	 * This is extracted from the latest member header read.
 	 */
-	char *		name;		/* current file name */
-	time_t		date;		/* date of file */
-	uid_t		uid;		/* user id */
-	gid_t		gid;		/* group id */
-	mode_t		mode;		/* file protection */
-	off_t		size;		/* file size */
-	int		pad;		/* padding to next header */
+	char *	name;		/* current file name */
+	time_t	date;		/* date of file */
+	uid_t	uid;		/* user id */
+	gid_t	gid;		/* group id */
+	mode_t	mode;		/* file protection */
+	off_t	size;		/* file size */
+	int	pad;		/* padding to next header */
 } Archive;
 
 
@@ -76,7 +76,7 @@ static BOOL	getNumber(const char * s, unsigned base, int max_digits,
 			unsigned long * ul);
 
 
-void
+int
 do_ar(int argc, const char ** argv)
 {
 	const char *	options;
@@ -85,8 +85,10 @@ do_ar(int argc, const char ** argv)
 	BOOL		doTable;
 	BOOL		doPrint;
 	BOOL		verbose;
+	int		r;
 	Archive		arch;
 
+	r = 0;
 	verbose = FALSE;
 	doExtract = FALSE;
 	doTable = FALSE;
@@ -96,7 +98,7 @@ do_ar(int argc, const char ** argv)
 	{
 		fprintf(stderr, "Too few arguments for ar\n");
 
-		return;
+		return 1;
 	}
 
 	/*
@@ -137,12 +139,12 @@ do_ar(int argc, const char ** argv)
 		case 'd': case 'm': case 'q': case 'r':
 			fprintf(stderr, "Writing ar files is not supported\n");
 
-			return;
+			return 1;
 
 		default:
 			fprintf(stderr, "Unknown ar flag: %c\n", *options);
 
-			return;
+			return 1;
 		}
 	}
 
@@ -151,7 +153,7 @@ do_ar(int argc, const char ** argv)
 		fprintf(stderr,
 			"Exactly one of 'x', 'p' or 't' must be specified\n");
 
-		return;
+		return 1;
 	}
 
 	/*
@@ -160,13 +162,13 @@ do_ar(int argc, const char ** argv)
 	initArchive(&arch);
 
 	if (!openArchive(archiveName, &arch))
-		return;
+		return 1;
 
 	/*
 	 * Read the first special member of the archive.
 	 */
 	if (!readSpecialMember(&arch))
-		return;
+		return 1;
 
 	/*
 	 * Read all of the normal members of the archive.
@@ -237,16 +239,22 @@ do_ar(int argc, const char ** argv)
 			}
 
 			if (!success)
+			{
+				r = 1;
 				break;
+			}
 		}
 		else
 		{
 			fprintf(stderr, "Oops -- I don't know what to do\n");
+			r = 1;
 			break;
 		}
 	}
 
 	closeArchive(&arch);
+
+	return r;
 }
 
 
@@ -275,8 +283,8 @@ createFile(const Archive * arch)
 	 * specifying the mode in the open() call, because that mode is
 	 * munged by the umask.
 	 */
-	(void) fchmod(fd, arch->mode);
-	(void) fchown(fd, arch->uid, arch->gid);
+	checkStatus("fchmod", fchmod(fd, arch->mode));
+	checkStatus("fchown", fchown(fd, arch->uid, arch->gid));
 
 	return fd;
 }
@@ -949,8 +957,8 @@ skipMember(const Archive * arch)
 static BOOL
 writeFile(const Archive * arch, int outfd)
 {
-	unsigned char	buf[BUF_SIZE];
-	off_t		n;
+	char	buf[BUF_SIZE];
+	off_t	n;
 
 	n = arch->size;
 

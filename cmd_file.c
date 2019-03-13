@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002 by David I. Bell
+ * Copyright (c) 2014 by David I. Bell
  * Permission is granted to use, distribute, or modify this source,
  * provided that this copyright notice remains intact.
  *
@@ -17,7 +17,7 @@
 static const char *	checkFile(const char * name);
 
 
-void
+int
 do_file(int argc, const char ** argv)
 {
 	const char *	name;
@@ -37,6 +37,8 @@ do_file(int argc, const char ** argv)
 
 		printf("%s: %s\n", name, info);
 	}
+
+	return 0;
 }
 
 

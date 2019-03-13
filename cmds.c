@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002 by David I. Bell
+ * Copyright (c) 2014 by David I. Bell
  * Permission is granted to use, distribute, or modify this source,
  * provided that this copyright notice remains intact.
  *
@@ -21,8 +21,19 @@
 #include <linux/fs.h>
 #endif
 
+/* Need to tell loop.h what the actual dev_t type is. */
+#undef dev_t
+#if defined(__alpha) || (defined(__sparc__) && defined(__arch64__))
+#define dev_t unsigned int
+#else
+#define dev_t unsigned short
+#endif
+#include <linux/loop.h>
+#undef dev_t
+#define dev_t dev_t
 
-void
+
+int
 do_echo(int argc, const char ** argv)
 {
 	BOOL	first;
@@ -39,10 +50,12 @@ do_echo(int argc, const char ** argv)
 	}
 
 	fputc('\n', stdout);
+
+	return 0;
 }
 
 
-void
+int
 do_pwd(int argc, const char ** argv)
 {
 	char	buf[PATH_LEN];
@@ -51,14 +64,16 @@ do_pwd(int argc, const char ** argv)
 	{
 		fprintf(stderr, "Cannot get current directory\n");
 
-		return;
+		return 1;
 	}
 
 	printf("%s\n", buf);
+
+	return 0;
 }
 
 
-void
+int
 do_cd(int argc, const char ** argv)
 {
 	const char *	path;
@@ -73,29 +88,42 @@ do_cd(int argc, const char ** argv)
 		{
 			fprintf(stderr, "No HOME environment variable\n");
 
-			return;
+			return 1;
 		}
 	}
 
 	if (chdir(path) < 0)
+	{
 		perror(path);
+
+		return 1;
+	}
+
+	return 0;
 }
 
 
-void
+int
 do_mkdir(int argc, const char ** argv)
 {
+	int r = 0;
+
 	while (argc-- > 1)
 	{
 		if (mkdir(argv[1], 0777) < 0)
+		{
 			perror(argv[1]);
+			r = 1;
+		}
 
 		argv++;
 	}
+
+	return r;
 }
 
 
-void
+int
 do_mknod(int argc, const char ** argv)
 {
 	const char *	cp;
@@ -113,7 +141,7 @@ do_mknod(int argc, const char ** argv)
 	{
 		fprintf(stderr, "Bad device type\n");
 
-		return;
+		return 1;
 	}
 
 	major = 0;
@@ -126,7 +154,7 @@ do_mknod(int argc, const char ** argv)
 	{
 		fprintf(stderr, "Bad major number\n");
 
-		return;
+		return 1;
 	}
 
 	minor = 0;
@@ -139,53 +167,113 @@ do_mknod(int argc, const char ** argv)
 	{
 		fprintf(stderr, "Bad minor number\n");
 
-		return;
+		return 1;
 	}
 
 	if (mknod(argv[1], mode, major * 256 + minor) < 0)
+	{
 		perror(argv[1]);
+
+		return 1;
+	}
+
+	return 0;
 }
 
 
-void
+#if HAVE_LINUX_PIVOT
+
+int
+do_pivot_root(int argc, const char ** argv)
+{
+	if (pivot_root(argv[1], argv[2]) < 0)
+	{
+		perror("pivot_root");
+
+		return 1;
+	}
+
+	return 0;
+}
+
+#endif
+
+
+#if HAVE_LINUX_CHROOT
+
+int
+do_chroot(int argc, const char ** argv)
+{
+	if (chroot(argv[1]) < 0)
+	{
+		perror("chroot");
+
+		return 1;
+	}
+
+	return 0;
+}
+
+#endif
+
+
+int
 do_rmdir(int argc, const char ** argv)
 {
+	int r = 0;
+
 	while (argc-- > 1)
 	{
 		if (rmdir(argv[1]) < 0)
+		{
 			perror(argv[1]);
+			r = 1;
+		}
 
 		argv++;
 	}
+
+	return r;
 }
 
 
-void
+int
 do_sync(int argc, const char ** argv)
 {
 	sync();
+
+	return 0;
 }
 
 
-void
+int
 do_rm(int argc, const char ** argv)
 {
+	int r = 0;
+
 	while (argc-- > 1)
 	{
 		if (unlink(argv[1]) < 0)
+		{
 			perror(argv[1]);
+			r = 1;
+		}
 
 		argv++;
 	}
+
+	return r;
 }
 
 
-void
+int
 do_chmod(int argc, const char ** argv)
 {
 	const char *	cp;
 	int		mode;
+	int		r;
 
+	r = 0;
 	mode = 0;
 	cp = argv[1];
 
@@ -196,7 +284,7 @@ do_chmod(int argc, const char ** argv)
 	{
 		fprintf(stderr, "Mode must be octal\n");
 
-		return;
+		return 1;
 	}
 
 	argc--;
@@ -205,21 +293,28 @@ do_chmod(int argc, const char ** argv)
 	while (argc-- > 1)
 	{
 		if (chmod(argv[1], mode) < 0)
+		{
 			perror(argv[1]);
+			r = 1;
+		}
 
 		argv++;
 	}
+
+	return r;
 }
 
 
-void
+int
 do_chown(int argc, const char ** argv)
 {
 	const char *	cp;
 	int		uid;
 	struct passwd *	pwd;
 	struct stat	statBuf;
+	int		r;
 
+	r = 0;
 	cp = argv[1];
 
 	if (isDecimal(*cp))
@@ -233,16 +328,18 @@ do_chown(int argc, const char ** argv)
 		{
 			fprintf(stderr, "Bad uid value\n");
 
-			return;
+			return 1;
 		}
-	} else {
+	}
+	else
+	{
 		pwd = getpwnam(cp);
 
 		if (pwd == NULL)
 		{
 			fprintf(stderr, "Unknown user name\n");
 
-			return;
+			return 1;
 		}
 
 		uid = pwd->pw_uid;
@@ -259,19 +356,24 @@ do_chown(int argc, const char ** argv)
 			(chown(*argv, uid, statBuf.st_gid) < 0))
 		{
 			perror(*argv);
+			r = 1;
 		}
 	}
+
+	return r;
 }
 
 
-void
+int
 do_chgrp(int argc, const char ** argv)
 {
 	const char *	cp;
 	int		gid;
 	struct group *	grp;
 	struct stat	statBuf;
+	int		r;
 
+	r = 0;
 	cp = argv[1];
 
 	if (isDecimal(*cp))
@@ -285,7 +387,7 @@ do_chgrp(int argc, const char ** argv)
 		{
 			fprintf(stderr, "Bad gid value\n");
 
-			return;
+			return 1;
 		}
 	}
 	else
@@ -296,7 +398,7 @@ do_chgrp(int argc, const char ** argv)
 		{
 			fprintf(stderr, "Unknown group name\n");
 
-			return;
+			return 1;
 		}
 
 		gid = grp->gr_gid;
@@ -313,18 +415,23 @@ do_chgrp(int argc, const char ** argv)
 			(chown(*argv, statBuf.st_uid, gid) < 0))
 		{
 			perror(*argv);
+			r = 1;
 		}
 	}
+
+	return r;
 }
 
 
-void
+int
 do_touch(int argc, const char ** argv)
 {
 	const char *	name;
 	int		fd;
 	struct utimbuf	now;
+	int		r;
 
+	r = 0;
 	time(&now.actime);
 	now.modtime = now.actime;
 
@@ -341,20 +448,35 @@ do_touch(int argc, const char ** argv)
 			continue;
 		}
 
-		if (utime(name, &now) < 0)
+		if (errno != EEXIST)
+		{
 			perror(name);
+			r = 1;
+
+			continue;
+		}
+
+		if (utime(name, &now) < 0)
+		{
+			perror(name);
+			r = 1;
+		}
 	}
+
+	return r;
 }
 
 
-void
+int
 do_mv(int argc, const char ** argv)
 {
 	const char *	srcName;
 	const char *	destName;
 	const char *	lastArg;
 	BOOL		dirFlag;
+	int		r;
 
+	r = 0;
 	lastArg = argv[argc - 1];
 
 	dirFlag = isDirectory(lastArg);
@@ -363,7 +485,7 @@ do_mv(int argc, const char ** argv)
 	{
 		fprintf(stderr, "%s: not a directory\n", lastArg);
 
-		return;
+		return 1;
 	}
 
 	while (!intFlag && (argc-- > 2))
@@ -373,6 +495,7 @@ do_mv(int argc, const char ** argv)
 		if (access(srcName, 0) < 0)
 		{
 			perror(srcName);
+			r = 1;
 
 			continue;
 		}
@@ -388,26 +511,39 @@ do_mv(int argc, const char ** argv)
 		if (errno != EXDEV)
 		{
 			perror(destName);
+			r = 1;
 
 			continue;
 		}
 
 		if (!copyFile(srcName, destName, TRUE))
+		{
+			r = 1;
+
 			continue;
+		}
 
 		if (unlink(srcName) < 0)
+		{
 			perror(srcName);
+			r = 1;
+		}
 	}
+
+	return r;
 }
 
 
-void
+int
 do_ln(int argc, const char ** argv)
 {
 	const char *	srcName;
 	const char *	destName;
 	const char *	lastArg;
 	BOOL		dirFlag;
+	int		r;
+
+	r = 0;
 
 	if (argv[1][0] == '-')
 	{
@@ -415,23 +551,30 @@ do_ln(int argc, const char ** argv)
 		{
 			fprintf(stderr, "Unknown option\n");
 
-			return;
+			return 1;
 		}
 
 		if (argc != 4)
 		{
 			fprintf(stderr, "Wrong number of arguments for symbolic link\n");
 
-			return;
+			return 1;
 		}
 
 #ifdef	S_ISLNK
 		if (symlink(argv[2], argv[3]) < 0)
+		{
 			perror(argv[3]);
+
+			return 1;
+		}
+
+		return 0;
 #else
 		fprintf(stderr, "Symbolic links are not allowed\n");
+
+		return 1;
 #endif
-		return;
 	}
 
 	/*
@@ -444,7 +587,7 @@ do_ln(int argc, const char ** argv)
 	{
 		fprintf(stderr, "%s: not a directory\n", lastArg);
 
-		return;
+		return 1;
 	}
 
 	while (argc-- > 2)
@@ -454,6 +597,7 @@ do_ln(int argc, const char ** argv)
 		if (access(srcName, 0) < 0)
 		{
 			perror(srcName);
+			r = 1;
 
 			continue;
 		}
@@ -466,21 +610,26 @@ do_ln(int argc, const char ** argv)
 		if (link(srcName, destName) < 0)
 		{
 			perror(destName);
+			r = 1;
 
 			continue;
 		}
 	}
+
+	return r;
 }
 
 
-void
+int
 do_cp(int argc, const char ** argv)
 {
 	const char *	srcName;
 	const char *	destName;
 	const char *	lastArg;
 	BOOL		dirFlag;
+	int		r;
 
+	r = 0;
 	lastArg = argv[argc - 1];
 
 	dirFlag = isDirectory(lastArg);
@@ -489,7 +638,7 @@ do_cp(int argc, const char ** argv)
 	{
 		fprintf(stderr, "%s: not a directory\n", lastArg);
 
-		return;
+		return 1;
 	}
 
 	while (!intFlag && (argc-- > 2))
@@ -500,12 +649,15 @@ do_cp(int argc, const char ** argv)
 		if (dirFlag)
 			destName = buildName(destName, srcName);
 
-		(void) copyFile(srcName, destName, FALSE);
+		if (!copyFile(srcName, destName, FALSE))
+			r = 1;
 	}
+
+	return r;
 }
 
 
-void
+int
 do_mount(int argc, const char ** argv)
 {
 	const char *	str;
@@ -535,7 +687,7 @@ do_mount(int argc, const char ** argv)
 				{
 					fprintf(stderr, "Missing file system type\n");
 
-					return;
+					return 1;
 				}
 
 				type = *argv++;
@@ -575,7 +727,7 @@ do_mount(int argc, const char ** argv)
 			default:
 				fprintf(stderr, "Unknown option\n");
 
-				return;
+				return 1;
 		}
 	}
 
@@ -583,14 +735,16 @@ do_mount(int argc, const char ** argv)
 	{
 		fprintf(stderr, "Wrong number of arguments for mount\n");
 
-		return;
+		return 1;
 	}
 
 #if	HAVE_LINUX_MOUNT
 
- 	if (mount(argv[0], argv[1], type, flags, 0) < 0)
- 		perror("mount failed");
-
+	if (mount(argv[0], argv[1], type, flags, 0) < 0)
+	{
+		perror("mount failed");
+		return 1;
+	}
 #elif	HAVE_BSD_MOUNT
 	{
 		struct	    ufs_args ufs;
@@ -600,56 +754,79 @@ do_mount(int argc, const char ** argv)
 		struct	    msdosfs_args msdosfs;
 		void *	    args;
 
-		if(!strcmp(type, "ffs") || !strcmp(type, "ufs")) {
+		if (!strcmp(type, "ffs") || !strcmp(type, "ufs"))
+		{
 			ufs.fspec = (char*) argv[0];
 			args = &ufs;
-		} else if(!strcmp(type, "adosfs")) {
+		}
+		else if (!strcmp(type, "adosfs"))
+		{
 			adosfs.fspec = (char*) argv[0];
 			adosfs.uid = 0;
 			adosfs.gid = 0;
 			args = &adosfs;
-		} else if(!strcmp(type, "cd9660")) {
+		}
+		else if (!strcmp(type, "cd9660"))
+		{
 			iso.fspec = (char*) argv[0];
 			args = &iso;
-		} else if(!strcmp(type, "mfs")) {
+		}
+		else if (!strcmp(type, "mfs"))
+		{
 			mfs.fspec = (char*) argv[0];
 			args = &mfs;
-		} else if(!strcmp(type, "msdos")) {
+		}
+		else if (!strcmp(type, "msdos"))
+		{
 			msdosfs.fspec = (char*) argv[0];
 			msdosfs.uid = 0;
 			msdosfs.gid = 0;
 			args = &msdosfs;
-		} else {
+		}
+		else
+		{
 			fprintf(stderr, "Unknown filesystem type: %s", type);
 			fprintf(stderr,
 			    "Supported: ffs ufs adosfs cd9660 mfs msdos\n");
-			return;
+
+			return 1;
 		}
 
 		if (mount(type, argv[1], flags, args) < 0)
-		        perror(argv[0]);
+		{
+			perror(argv[0]);
+
+			return 1;
+		}
 	}
 #endif
+	return 0;
 }
 
 
-void
+int
 do_umount(int argc, const char ** argv)
 {
 #if	HAVE_LINUX_MOUNT
 	if (umount(argv[1]) < 0)
+	{
 		perror(argv[1]);
+
+		return 1;
+	}
 #elif	HAVE_BSD_MOUNT
 	{
 		const char *	str;
 		int		flags = 0;
 
 		for (argc--, argv++;
-		    (argc > 0) && (**argv == '-');) {
+		    (argc > 0) && (**argv == '-');)
+		{
 			argc--;
 			str = *argv++;
 
-			while (*++str) {
+			while (*++str)
+{
 				switch (*str)
 				{
 					case 'f':
@@ -660,13 +837,18 @@ do_umount(int argc, const char ** argv)
 		}
 
 		if (unmount(argv[0], flags) < 0)
+		{
 			perror(argv[0]);
+
+			return 1;
+		}
 	}
 #endif
+	return 0;
 }
 
 
-void
+int
 do_cmp(int argc, const char ** argv)
 {
 	int		fd1;
@@ -680,19 +862,22 @@ do_cmp(int argc, const char ** argv)
 	char		buf2[BUF_SIZE];
 	struct	stat	statBuf1;
 	struct	stat	statBuf2;
+	int		r;
+
+	r = 0;
 
 	if (stat(argv[1], &statBuf1) < 0)
 	{
 		perror(argv[1]);
 
-		return;
+		return 1;
 	}
 
 	if (stat(argv[2], &statBuf2) < 0)
 	{
 		perror(argv[2]);
 
-		return;
+		return 1;
 	}
 
 	if ((statBuf1.st_dev == statBuf2.st_dev) &&
@@ -700,14 +885,14 @@ do_cmp(int argc, const char ** argv)
 	{
 		printf("Files are links to each other\n");
 
-		return;
+		return 0;
 	}
 
 	if (statBuf1.st_size != statBuf2.st_size)
 	{
 		printf("Files are different sizes\n");
 
-		return;
+		return 1;
 	}
 
 	fd1 = open(argv[1], O_RDONLY);
@@ -716,7 +901,7 @@ do_cmp(int argc, const char ** argv)
 	{
 		perror(argv[1]);
 
-		return;
+		return 1;
 	}
 
 	fd2 = open(argv[2], O_RDONLY);
@@ -726,7 +911,7 @@ do_cmp(int argc, const char ** argv)
 		perror(argv[2]);
 		close(fd1);
 
-		return;
+		return 1;
 	}
 
 	pos = 0;
@@ -741,6 +926,7 @@ do_cmp(int argc, const char ** argv)
 		if (cc1 < 0)
 		{
 			perror(argv[1]);
+			r = 1;
 			goto closefiles;
 		}
 
@@ -749,24 +935,28 @@ do_cmp(int argc, const char ** argv)
 		if (cc2 < 0)
 		{
 			perror(argv[2]);
+			r = 1;
 			goto closefiles;
 		}
 
 		if ((cc1 == 0) && (cc2 == 0))
 		{
 			printf("Files are identical\n");
+			r = 0;
 			goto closefiles;
 		}
 
 		if (cc1 < cc2)
 		{
 			printf("First file is shorter than second\n");
+			r = 1;
 			goto closefiles;
 		}
 
 		if (cc1 > cc2)
 		{
 			printf("Second file is shorter than first\n");
+			r = 1;
 			goto closefiles;
 		}
 
@@ -784,6 +974,7 @@ do_cmp(int argc, const char ** argv)
 			pos++;
 
 		printf("Files differ at byte position %ld\n", pos);
+		r = 1;
 
 		goto closefiles;
 	}
@@ -791,10 +982,12 @@ do_cmp(int argc, const char ** argv)
 closefiles:
 	close(fd1);
 	close(fd2);
+
+	return r;
 }
 
 
-void
+int
 do_more(int argc, const char ** argv)
 {
 	FILE *		fp;
@@ -842,7 +1035,7 @@ do_more(int argc, const char ** argv)
 		{
 			perror(name);
 
-			return;
+			return 1;
 		}
 
 		printf("<< %s >>\n", name);
@@ -897,7 +1090,7 @@ do_more(int argc, const char ** argv)
 				if (fp)
 					fclose(fp);
 
-				return;
+				return 0;
 			}
 
 			ch = buf[0];
@@ -917,7 +1110,7 @@ do_more(int argc, const char ** argv)
 				case 'q':
 					fclose(fp);
 
-					return;
+					return 0;
 			}
 
 			col = 0;
@@ -927,10 +1120,12 @@ do_more(int argc, const char ** argv)
 		if (fp)
 			fclose(fp);
 	}
+
+	return 0;
 }
 
 
-void
+int
 do_sum(int argc, const char ** argv)
 {
 	const char *	name;
@@ -940,9 +1135,11 @@ do_sum(int argc, const char ** argv)
 	int		i;
 	unsigned long	checksum;
 	char		buf[BUF_SIZE];
+	int		r;
 
 	argc--;
 	argv++;
+	r = 0;
 
 	while (argc-- > 0)
 	{
@@ -953,6 +1150,7 @@ do_sum(int argc, const char ** argv)
 		if (fd < 0)
 		{
 			perror(name);
+			r = 1;
 
 			continue;
 		}
@@ -977,6 +1175,7 @@ do_sum(int argc, const char ** argv)
 		if (cc < 0)
 		{
 			perror(name);
+			r = 1;
 
 			(void) close(fd);
 
@@ -987,24 +1186,35 @@ do_sum(int argc, const char ** argv)
 
 		printf("%05lu %s\n", checksum, name);
 	}
+
+	return r;
 }
 
 
-void
+int
 do_exit(int argc, const char ** argv)
 {
+	int r = 0;
+
 	if (getpid() == 1)
 	{
 		fprintf(stderr, "You are the INIT process!\n");
 
-		return;
+		return 1;
 	}
 
-	exit(0);
+	if (argc == 2)
+	{
+		r = atoi(argv[1]);
+	}
+
+	exit(r);
+
+	return 1;
 }
 
 
-void
+int
 do_setenv(int argc, const char ** argv)
 {
 	const char *	name;
@@ -1024,7 +1234,7 @@ do_setenv(int argc, const char ** argv)
 	{
 		fprintf(stderr, "Cannot allocate memory\n");
 
-		return;
+		return 1;
 	}
 
 	strcpy(str, name);
@@ -1032,10 +1242,12 @@ do_setenv(int argc, const char ** argv)
 	strcat(str, value);
 
 	putenv(str);
+
+	return 0;
 }
 
 
-void
+int
 do_printenv(int argc, const char ** argv)
 {
 	const char **	env;
@@ -1049,7 +1261,7 @@ do_printenv(int argc, const char ** argv)
 		while (*env)
 			printf("%s\n", *env++);
 
-		return;
+		return 0;
 	}
 
 	len = strlen(argv[1]);
@@ -1061,14 +1273,16 @@ do_printenv(int argc, const char ** argv)
 		{
 			printf("%s\n", &env[0][len+1]);
 
-			return;
+			return 0;
 		}
 		env++;
 	}
+
+	return 0;
 }
 
 
-void
+int
 do_umask(int argc, const char ** argv)
 {
 	const char *	cp;
@@ -1080,7 +1294,7 @@ do_umask(int argc, const char ** argv)
 		umask(mask);
 		printf("%03o\n", mask);
 
-		return;
+		return 0;
 	}
 
 	mask = 0;
@@ -1093,20 +1307,24 @@ do_umask(int argc, const char ** argv)
 	{
 		fprintf(stderr, "Bad umask value\n");
 
-		return;
+		return 1;
 	}
 
 	umask(mask);
+
+	return 0;
 }
 
 
-void
+int
 do_kill(int argc, const char ** argv)
 {
 	const char *	cp;
 	int		sig;
 	int		pid;
+	int		r;
 
+	r = 0;
 	sig = SIGTERM;
 
 	if (argv[1][0] == '-')
@@ -1142,7 +1360,7 @@ do_kill(int argc, const char ** argv)
 			{
 				fprintf(stderr, "Unknown signal\n");
 
-				return;
+				return 1;
 			}
 		}
 
@@ -1162,16 +1380,21 @@ do_kill(int argc, const char ** argv)
 		{
 			fprintf(stderr, "Non-numeric pid\n");
 
-			return;
+			return 1;
 		}
 
 		if (kill(pid, sig) < 0)
+		{
 			perror(*argv);
+			r = 1;
+		}
 	}
+
+	return r;
 }
 
 
-void
+int
 do_where(int argc, const char ** argv)
 {
 	const char *	program;
@@ -1180,6 +1403,7 @@ do_where(int argc, const char ** argv)
 	char *		endPath;
 	char *		fullPath;
 	BOOL		found;
+	int		r;
 
 	found = FALSE;
 	program = argv[1];
@@ -1188,7 +1412,7 @@ do_where(int argc, const char ** argv)
 	{
 		fprintf(stderr, "Program name cannot include a path\n");
 
-		return;
+		return 1;
 	}
 
 	path = getenv("PATH");
@@ -1200,7 +1424,7 @@ do_where(int argc, const char ** argv)
 	{
 		fprintf(stderr, "Memory allocation failed\n");
 
-		return;
+		return 1;
 	}
 
 	/*
@@ -1240,7 +1464,10 @@ do_where(int argc, const char ** argv)
 		if (access(fullPath, X_OK) < 0)
 		{
 			if (errno != ENOENT)
-				printf("%s: %s\n", fullPath, strerror(errno));
+			{
+				perror(fullPath);
+				r = 1;
+			}
 
 			continue;
 		}
@@ -1250,7 +1477,86 @@ do_where(int argc, const char ** argv)
 	}
 
 	if (!found)
+	{
 		printf("Program \"%s\" not found in PATH\n", program);
+		r = 1;
+	}
+
+	return r;
 }
+
+#if HAVE_LINUX_LOSETUP
+
+int
+do_losetup(int argc, const char ** argv)
+{
+	int loopfd;
+	int targfd;
+	struct loop_info loopInfo;
+
+	if (!strcmp(argv[1], "-d"))
+	{
+		loopfd = open(argv[2], O_RDWR);
+
+		if (loopfd < 0)
+		{
+			fprintf(stderr, "Error opening %s: %s\n", argv[2], 
+				strerror(errno));
+
+			return 1;
+		}
+
+		if (ioctl(loopfd, LOOP_CLR_FD, 0))
+		{
+			fprintf(stderr, "Error unassociating device: %s\n", 
+				strerror(errno));
+
+			return 1;
+		}
+	}
+
+	loopfd = open(argv[1], O_RDWR);
+
+	if (loopfd < 0)
+	{
+		fprintf(stderr, "Error opening %s: %s\n", argv[1], 
+			strerror(errno));
+
+		return 1;
+	}
+
+	targfd = open(argv[2], O_RDWR);
+
+	if (targfd < 0)
+	{
+		fprintf(stderr, "Error opening %s: %s\n", argv[2], 
+			strerror(errno));
+
+		return 1;
+	}
+
+	if (ioctl(loopfd, LOOP_SET_FD, targfd))
+	{
+		fprintf(stderr, "Error setting up loopback device: %s\n", 
+			strerror(errno));
+
+		return 1;
+	}
+
+	memset(&loopInfo, 0, sizeof(loopInfo));
+	strcpy(loopInfo.lo_name, argv[2]);
+
+	if (ioctl(loopfd, LOOP_SET_STATUS, &loopInfo))
+	{
+		fprintf(stderr, "Error setting up loopback device: %s\n", 
+			strerror(errno));
+
+		return 1;
+	}
+
+	return 0;
+}
+
+#endif
 
 /* END CODE */

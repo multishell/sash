@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002 by David I. Bell
+ * Copyright (c) 2014 by David I. Bell
  * Permission is granted to use, distribute, or modify this source,
  * provided that this copyright notice remains intact.
  *
@@ -58,56 +58,69 @@ typedef	int	BOOL;
 /*
  * Built-in command functions.
  */
-extern	void	do_alias(int argc, const char ** argv);
-extern	void	do_aliasall(int argc, const char ** argv);
-extern	void	do_cd(int argc, const char ** argv);
-extern	void	do_exec(int argc, const char ** argv);
-extern	void	do_exit(int argc, const char ** argv);
-extern	void	do_prompt(int argc, const char ** argv);
-extern	void	do_source(int argc, const char ** argv);
-extern	void	do_umask(int argc, const char ** argv);
-extern	void	do_unalias(int argc, const char ** argv);
-extern	void	do_help(int argc, const char ** argv);
-extern	void	do_ln(int argc, const char ** argv);
-extern	void	do_cp(int argc, const char ** argv);
-extern	void	do_mv(int argc, const char ** argv);
-extern	void	do_rm(int argc, const char ** argv);
-extern	void	do_chmod(int argc, const char ** argv);
-extern	void	do_mkdir(int argc, const char ** argv);
-extern	void	do_rmdir(int argc, const char ** argv);
-extern	void	do_mknod(int argc, const char ** argv);
-extern	void	do_chown(int argc, const char ** argv);
-extern	void	do_chgrp(int argc, const char ** argv);
-extern	void	do_sum(int argc, const char ** argv);
-extern	void	do_sync(int argc, const char ** argv);
-extern	void	do_printenv(int argc, const char ** argv);
-extern	void	do_more(int argc, const char ** argv);
-extern	void	do_cmp(int argc, const char ** argv);
-extern	void	do_touch(int argc, const char ** argv);
-extern	void	do_ls(int argc, const char ** argv);
-extern	void	do_dd(int argc, const char ** argv);
-extern	void	do_tar(int argc, const char ** argv);
-extern	void	do_ar(int argc, const char ** argv);
-extern	void	do_mount(int argc, const char ** argv);
-extern	void	do_umount(int argc, const char ** argv);
-extern	void	do_setenv(int argc, const char ** argv);
-extern	void	do_pwd(int argc, const char ** argv);
-extern	void	do_echo(int argc, const char ** argv);
-extern	void	do_kill(int argc, const char ** argv);
-extern	void	do_grep(int argc, const char ** argv);
-extern	void	do_file(int argc, const char ** argv);
-extern	void	do_find(int argc, const char ** argv);
-extern	void	do_ed(int argc, const char ** argv);
-extern	void	do_where(int argc, const char ** argv);
+extern	int	do_alias(int argc, const char ** argv);
+extern	int	do_aliasall(int argc, const char ** argv);
+extern	int	do_cd(int argc, const char ** argv);
+extern	int	do_exec(int argc, const char ** argv);
+extern	int	do_exit(int argc, const char ** argv);
+extern	int	do_prompt(int argc, const char ** argv);
+extern	int	do_source(int argc, const char ** argv);
+extern	int	do_umask(int argc, const char ** argv);
+extern	int	do_unalias(int argc, const char ** argv);
+extern	int	do_help(int argc, const char ** argv);
+extern	int	do_ln(int argc, const char ** argv);
+extern	int	do_cp(int argc, const char ** argv);
+extern	int	do_mv(int argc, const char ** argv);
+extern	int	do_rm(int argc, const char ** argv);
+extern	int	do_chmod(int argc, const char ** argv);
+extern	int	do_mkdir(int argc, const char ** argv);
+extern	int	do_rmdir(int argc, const char ** argv);
+extern	int	do_mknod(int argc, const char ** argv);
+extern	int	do_chown(int argc, const char ** argv);
+extern	int	do_chgrp(int argc, const char ** argv);
+extern	int	do_sum(int argc, const char ** argv);
+extern	int	do_sync(int argc, const char ** argv);
+extern	int	do_printenv(int argc, const char ** argv);
+extern	int	do_more(int argc, const char ** argv);
+extern	int	do_cmp(int argc, const char ** argv);
+extern	int	do_touch(int argc, const char ** argv);
+extern	int	do_ls(int argc, const char ** argv);
+extern	int	do_dd(int argc, const char ** argv);
+extern	int	do_tar(int argc, const char ** argv);
+extern	int	do_ar(int argc, const char ** argv);
+extern	int	do_mount(int argc, const char ** argv);
+extern	int	do_umount(int argc, const char ** argv);
+extern	int	do_setenv(int argc, const char ** argv);
+extern	int	do_pwd(int argc, const char ** argv);
+extern	int	do_echo(int argc, const char ** argv);
+extern	int	do_kill(int argc, const char ** argv);
+extern	int	do_grep(int argc, const char ** argv);
+extern	int	do_file(int argc, const char ** argv);
+extern	int	do_find(int argc, const char ** argv);
+extern	int	do_ed(int argc, const char ** argv);
+extern	int	do_where(int argc, const char ** argv);
 
 #if	HAVE_GZIP
-extern	void	do_gzip(int argc, const char ** argv);
-extern	void	do_gunzip(int argc, const char ** argv);
+extern	int	do_gzip(int argc, const char ** argv);
+extern	int	do_gunzip(int argc, const char ** argv);
 #endif
 
 #if	HAVE_LINUX_ATTR
-extern	void	do_lsattr(int argc, const char ** argv);
-extern	void	do_chattr(int argc, const char ** argv);
+extern	int	do_lsattr(int argc, const char ** argv);
+extern	int	do_chattr(int argc, const char ** argv);
+#endif
+
+#if	HAVE_LINUX_CHROOT
+extern	int	do_chroot(int argc, const char ** argv);
+#endif
+
+#if	HAVE_LINUX_LOSETUP
+extern	int	do_losetup(int argc, const char ** argv);
+#endif
+
+#if	HAVE_LINUX_PIVOT
+extern	int	do_pivot_root(int argc, const char ** argv);
+extern  int	pivot_root(const char *new_root, const char *put_old);
 #endif
 
 
@@ -122,8 +135,11 @@ extern	int		nameSort(const void * p1, const void * p2);
 extern	char *		getChunk(int size);
 extern	char *		chunkstrdup(const char *);
 extern	void		freeChunks(void);
+extern	int		trySystem(const char * cmd);
+extern	void		tryWrite(int fd, const char * buf, int len);
 extern	int		fullWrite(int fd, const char * buf, int len);
 extern	int		fullRead(int fd, char * buf, int len);
+extern	void		checkStatus(const char * name, int status);
 extern	BOOL		match(const char * text, const char * pattern);
 
 extern	const char *	buildName

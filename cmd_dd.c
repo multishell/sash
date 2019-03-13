@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004 by David I. Bell
+ * Copyright (c) 2014 by David I. Bell
  * Permission is granted to use, distribute, or modify this source,
  * provided that this copyright notice remains intact.
  *
@@ -40,7 +40,7 @@ static const PARAM	params[] =
 static	long	getNum(const char * cp);
 
 
-void
+int
 do_dd(int argc, const char ** argv)
 {
 	const char *	str;
@@ -62,6 +62,7 @@ do_dd(int argc, const char ** argv)
 	long		outPartial;
 	char *		buf;
 	char		localBuf[BUF_SIZE];
+	int		r;
 
 	inFile = NULL;
 	outFile = NULL;
@@ -69,6 +70,7 @@ do_dd(int argc, const char ** argv)
 	skipVal = 0;
 	blockSize = 512;
 	count = -1;
+	r = 0;
 
 	while (--argc > 0)
 	{
@@ -79,7 +81,7 @@ do_dd(int argc, const char ** argv)
 		{
 			fprintf(stderr, "Bad dd argument\n");
 
-			return;
+			return 1;
 		}
 
 		*cp++ = '\0';
@@ -97,7 +99,7 @@ do_dd(int argc, const char ** argv)
 				{
 					fprintf(stderr, "Multiple input files illegal\n");
 
-					return;
+					return 1;
 				}
 	
 				inFile = cp;
@@ -108,7 +110,7 @@ do_dd(int argc, const char ** argv)
 				{
 					fprintf(stderr, "Multiple output files illegal\n");
 
-					return;
+					return 1;
 				}
 
 				outFile = cp;
@@ -121,7 +123,7 @@ do_dd(int argc, const char ** argv)
 				{
 					fprintf(stderr, "Bad block size value\n");
 
-					return;
+					return 1;
 				}
 
 				break;
@@ -133,7 +135,7 @@ do_dd(int argc, const char ** argv)
 				{
 					fprintf(stderr, "Bad count value\n");
 
-					return;
+					return 1;
 				}
 
 				break;
@@ -145,7 +147,7 @@ do_dd(int argc, const char ** argv)
 				{
 					fprintf(stderr, "Bad seek value\n");
 
-					return;
+					return 1;
 				}
 
 				break;
@@ -157,7 +159,7 @@ do_dd(int argc, const char ** argv)
 				{
 					fprintf(stderr, "Bad skip value\n");
 
-					return;
+					return 1;
 				}
 
 				break;
@@ -165,7 +167,7 @@ do_dd(int argc, const char ** argv)
 			default:
 				fprintf(stderr, "Unknown dd parameter\n");
 
-				return;
+				return 1;
 		}
 	}
 
@@ -173,14 +175,14 @@ do_dd(int argc, const char ** argv)
 	{
 		fprintf(stderr, "No input file specified\n");
 
-		return;
+		return 1;
 	}
 
 	if (outFile == NULL)
 	{
 		fprintf(stderr, "No output file specified\n");
 
-		return;
+		return 1;
 	}
 
 	buf = localBuf;
@@ -193,7 +195,7 @@ do_dd(int argc, const char ** argv)
 		{
 			fprintf(stderr, "Cannot allocate buffer\n");
 
-			return;
+			return 1;
 		}
 	}
 
@@ -211,7 +213,7 @@ do_dd(int argc, const char ** argv)
 		if (buf != localBuf)
 			free(buf);
 
-		return;
+		return 1;
 	}
 
 	outFd = creat(outFile, 0666);
@@ -224,7 +226,7 @@ do_dd(int argc, const char ** argv)
 		if (buf != localBuf)
 			free(buf);
 
-		return;
+		return 1;
 	}
 
 	if (skipVal)
@@ -238,12 +240,14 @@ do_dd(int argc, const char ** argv)
 				if (inCc < 0)
 				{
 					perror(inFile);
+					r = 1;
 					goto cleanup;
 				}
 
 				if (inCc == 0)
 				{
 					fprintf(stderr, "End of file while skipping\n");
+					r = 1;
 					goto cleanup;
 				}
 			}
@@ -255,7 +259,7 @@ do_dd(int argc, const char ** argv)
 		if (lseek(outFd, seekVal * blockSize, 0) < 0)
 		{
 			perror(outFile);
-
+			r = 1;
 			goto cleanup;
 		}
 	}
@@ -274,6 +278,7 @@ do_dd(int argc, const char ** argv)
 		if (intFlag)
 		{
 			fprintf(stderr, "Interrupted\n");
+			r = 1;
 			goto cleanup;
 		}
 
@@ -284,6 +289,7 @@ do_dd(int argc, const char ** argv)
 			if (outCc < 0)
 			{
 				perror(outFile);
+				r = 1;
 				goto cleanup;
 			}
 
@@ -303,7 +309,10 @@ cleanup:
 	close(inFd);
 
 	if (close(outFd) < 0)
+	{
 		perror(outFile);
+		r = 1;
+	}
 
 	if (buf != localBuf)
 		free(buf);
@@ -311,6 +320,8 @@ cleanup:
 	printf("%ld+%ld records in\n", inFull, inPartial);
 
 	printf("%ld+%ld records out\n", outFull, outPartial);
+
+	return r;
 }
 
 

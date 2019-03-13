@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002 by David I. Bell
+ * Copyright (c) 2014 by David I. Bell
  * Permission is granted to use, distribute, or modify this source,
  * provided that this copyright notice remains intact.
  *
@@ -62,14 +62,16 @@ static const char * convertName
 	(const CONVERT * table, const char * inFile);
 
 
-void
+int
 do_gzip(int argc, const char ** argv)
 {
 	const char *	outPath;
 	const char *	inFile;
 	const char *	outFile;
 	int		i;
+	int		r;
 
+	r = 0;
 	argc--;
 	argv++;
 
@@ -99,7 +101,7 @@ do_gzip(int argc, const char ** argv)
 			else
 				fprintf(stderr, "Illegal option\n");
 
-			return;
+			return 1;
 		}
 	}
 	
@@ -120,7 +122,11 @@ do_gzip(int argc, const char ** argv)
 			 * Try to compress the file.
 			 */
 			if (!gzip(inFile, outFile))
+			{
+				r = 1;
+
 				continue;
+			}
 
 			/*
 			 * This was successful.
@@ -130,10 +136,12 @@ do_gzip(int argc, const char ** argv)
 			{
 				fprintf(stderr, "%s: %s\n", inFile,
 					"Compressed ok but unlink failed");
+
+				r = 1;
 			}
 		}
 
-		return;
+		return r;
 	}
 
 	/*
@@ -145,11 +153,14 @@ do_gzip(int argc, const char ** argv)
 	if (!isDirectory(outPath))
 	{
 		if (argc == 1)
-			(void) gzip(*argv, outPath);
+			r = !gzip(*argv, outPath);
 		else
+		{
 			fprintf(stderr, "Exactly one input file is required\n");
+			r = 1;
+		}
 
-		return;
+		return r;
 	}
 
 	/*
@@ -187,19 +198,24 @@ do_gzip(int argc, const char ** argv)
 		/*
 		 * Compress the input file without deleting the input file.
 		 */
-		(void) gzip(inFile, outFile);
+		if (!gzip(inFile, outFile))
+			r = 1;
 	}
+
+	return r;
 }
 
 
-void
+int
 do_gunzip(int argc, const char ** argv)
 {
 	const char *	outPath;
 	const char *	inFile;
 	const char *	outFile;
 	int		i;
+	int		r;
 
+	r = 0;
 	argc--;
 	argv++;
 
@@ -229,7 +245,7 @@ do_gunzip(int argc, const char ** argv)
 			else
 				fprintf(stderr, "Illegal option\n");
 
-			return;
+			return 1;
 		}
 	}
 	
@@ -251,6 +267,7 @@ do_gunzip(int argc, const char ** argv)
 			{
 				fprintf(stderr, "%s: %s\n", inFile,
 					"missing compression extension");
+				r = 1;
 
 				continue;
 			}
@@ -259,7 +276,10 @@ do_gunzip(int argc, const char ** argv)
 			 * Try to uncompress the file.
 			 */
 			if (!gunzip(inFile, outFile))
+			{
+				r = 1;
 				continue;
+			}
 
 			/*
 			 * This was successful.
@@ -269,10 +289,11 @@ do_gunzip(int argc, const char ** argv)
 			{
 				fprintf(stderr, "%s: %s\n", inFile,
 					"Uncompressed ok but unlink failed");
+				r = 1;
 			}
 		}
 
-		return;
+		return r;
 	}
 
 	/*
@@ -283,9 +304,12 @@ do_gunzip(int argc, const char ** argv)
 	if (isDevice(outPath))
 	{
 		while (!intFlag && (argc-- > 0))
-			(void) gunzip(*argv++, outPath);
+		{
+			if (!gunzip(*argv++, outPath))
+				r = 1;
+		}
 
-		return;
+		return r;
 	}
 
 	/*
@@ -296,11 +320,11 @@ do_gunzip(int argc, const char ** argv)
 	if (!isDirectory(outPath))
 	{
 		if (argc == 1)
-			(void) gunzip(*argv, outPath);
+			return !gunzip(*argv, outPath);
 		else
 			fprintf(stderr, "Exactly one input file is required\n");
 
-		return;
+		return 1;
 	}
 
 	/*
@@ -338,8 +362,11 @@ do_gunzip(int argc, const char ** argv)
 		/*
 		 * Uncompress the input file without deleting the input file.
 		 */
-		(void) gunzip(inFile, outFile);
+		if (!gunzip(inFile, outFile))
+			r = 1;
 	}
+
+	return r;
 }
 
 

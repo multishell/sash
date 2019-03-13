@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002 by David I. Bell
+ * Copyright (c) 2014 by David I. Bell
  * Permission is granted to use, distribute, or modify this source,
  * provided that this copyright notice remains intact.
  *
@@ -60,11 +60,11 @@ static	LEN	findString
 	(const LINE * lp, const char * str, LEN len, LEN offset);
 
 
-void
+int
 do_ed(int argc, const char ** argv)
 {
 	if (!initEdit())
-		return;
+		return 1;
 
 	if (argc > 1)
 	{
@@ -75,14 +75,14 @@ do_ed(int argc, const char ** argv)
 			fprintf(stderr, "No memory\n");
 			termEdit();
 
-			return;
+			return 1;
 		}
 
 		if (!readLines(fileName, 1))
 		{
 			termEdit();
 
-			return;
+			return 1;
 		}
 
 		if (lastNum)
@@ -94,6 +94,7 @@ do_ed(int argc, const char ** argv)
 	doCommands();
 
 	termEdit();
+	return 0;
 }
 
 
@@ -281,7 +282,10 @@ doCommands(void)
 				fflush(stdout);
 
 				buf[0] = '\0';
-				fgets(buf, sizeof(buf), stdin);
+
+				if (fgets(buf, sizeof(buf), stdin) == NULL)
+					return;
+
 				cp = buf;
 
 				while (isBlank(*cp))
@@ -1111,10 +1115,10 @@ writeLines(const char * file, NUM num1, NUM num2)
 static BOOL
 printLines(NUM num1, NUM num2, BOOL expandFlag)
 {
-	const LINE *		lp;
-	const unsigned char *	cp;
-	int			ch;
-	LEN			count;
+	const LINE *	lp;
+	const char *	cp;
+	int		ch;
+	LEN		count;
 
 	if ((num1 < 1) || (num2 > lastNum) || (num1 > num2))
 	{
@@ -1132,7 +1136,7 @@ printLines(NUM num1, NUM num2, BOOL expandFlag)
 	{
 		if (!expandFlag)
 		{
-			write(STDOUT, lp->data, lp->len);
+			tryWrite(STDOUT, lp->data, lp->len);
 			setCurNum(num1++);
 			lp = lp->next;
 
@@ -1151,7 +1155,7 @@ printLines(NUM num1, NUM num2, BOOL expandFlag)
 
 		while (count-- > 0)
 		{
-			ch = *cp++;
+			ch = *cp++ & 0xff;
 
 			if (ch & 0x80)
 			{

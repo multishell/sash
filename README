@@ -1,4 +1,4 @@
-This is release 3.7 of sash, my stand-alone shell for Linux or other systems.
+This is release 3.8 of sash, my stand-alone shell for Linux or other systems.
 
 The purpose of this program is to make system recovery possible in
 many cases where there are missing shared libraries or executables.
@@ -13,5 +13,5 @@ other UNIX-like systems.  In particular, dependencies on Linux file
 systems can be removed and the mount command can be configured.
 
 David I. Bell
-dbell@canb.auug.org.au
-12 January 2004
+dbell@tip.net.au
+8 March 2014

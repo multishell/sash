@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002 by David I. Bell
+ * Copyright (c) 2014 by David I. Bell
  * Permission is granted to use, distribute, or modify this source,
  * provided that this copyright notice remains intact.
  *
@@ -46,7 +46,7 @@ static	BOOL	testFile(const char * fullName, const struct stat * statBuf);
  * Find files from the specified directory path.
  * This is limited to just printing their file names.
  */
-void
+int
 do_find(int argc, const char ** argv)
 {
 	const char *	cp;
@@ -65,7 +65,7 @@ do_find(int argc, const char ** argv)
 	{
 		fprintf(stderr, "No path specified\n");
 
-		return;
+		return 1;
 	}
 
 	path = *argv++;
@@ -84,7 +84,7 @@ do_find(int argc, const char ** argv)
 			{
 				fprintf(stderr, "Missing type string\n");
 
-				return;
+				return 1;
 			}
 
 			argc--;
@@ -96,7 +96,7 @@ do_find(int argc, const char ** argv)
 			{
 				fprintf(stderr, "Missing file name\n");
 
-				return;
+				return 1;
 			}
 
 			argc--;
@@ -108,7 +108,7 @@ do_find(int argc, const char ** argv)
 			{
 				fprintf(stderr, "Missing file size\n");
 
-				return;
+				return 1;
 			}
 
 			argc--;
@@ -123,7 +123,7 @@ do_find(int argc, const char ** argv)
 			{
 				fprintf(stderr, "Bad file size specified\n");
 
-				return;
+				return 1;
 			}
 		}
 		else
@@ -133,7 +133,7 @@ do_find(int argc, const char ** argv)
 			else
 				fprintf(stderr, "Unknown option\n");
 
-			return;
+			return 1;
 		}
 	}
 
@@ -146,14 +146,14 @@ do_find(int argc, const char ** argv)
 		fprintf(stderr, "Cannot stat \"%s\": %s\n", path,
 			strerror(errno));
 
-		return;
+		return 1;
 	}
 
 	if (!S_ISDIR(statBuf.st_mode))
 	{
 		fprintf(stderr, "Path \"%s\" is not a directory\n", path);
 
-		return;
+		return 1;
 	}
 
 	/*
@@ -171,6 +171,8 @@ do_find(int argc, const char ** argv)
 	 * Now examine the files in the directory.
 	 */
 	examineDirectory(path);
+
+	return 0;
 }
 
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002 by David I. Bell
+ * Copyright (c) 2014 by David I. Bell
  * Permission is granted to use, distribute, or modify this source,
  * provided that this copyright notice remains intact.
  *
@@ -34,6 +34,7 @@
 #define	LSF_MULT	0x08
 #define	LSF_FLAG	0x10
 #define	LSF_COLUMN	0x20
+#define	LSF_NUMERIC	0x40
 
 
 /*
@@ -42,6 +43,16 @@
 static	char **	list;
 static	int	listSize;
 static	int	listUsed;
+
+/*
+ * Cached user and group name data.
+ */
+static	char	userName[12];
+static	int	userId;
+static	BOOL	userIdKnown;
+static	char	groupName[12];
+static	int	groupId;
+static	BOOL	groupIdKnown;
 
 
 /*
@@ -59,7 +70,7 @@ static	void	listAllFiles(int flags, int displayWidth);
 static	void	clearListNames(void);
 
 
-void
+int
 do_ls(int argc, const char ** argv)
 {
 	const char *	cp;
@@ -72,6 +83,7 @@ do_ls(int argc, const char ** argv)
 	struct dirent *	dp;
 	char		fullName[PATH_LEN];
 	struct	stat	statBuf;
+	int		r;
 
 	static const char *	def[] = {"."};
 
@@ -79,6 +91,9 @@ do_ls(int argc, const char ** argv)
 	 * Reset for a new listing run.
 	 */
 	clearListNames();
+
+	userIdKnown = FALSE;
+	groupIdKnown = FALSE;
 
 	displayWidth = 0;
 	flags = 0;
@@ -97,6 +112,7 @@ do_ls(int argc, const char ** argv)
 		while (*cp) switch (*cp++)
 		{
 			case 'l':	flags |= LSF_LONG; break;
+			case 'n':	flags |= LSF_NUMERIC; break;
 			case 'd':	flags |= LSF_DIR; break;
 			case 'i':	flags |= LSF_INODE; break;
 			case 'F':	flags |= LSF_FLAG; break;
@@ -105,14 +121,14 @@ do_ls(int argc, const char ** argv)
 			default:
 				fprintf(stderr, "Unknown option -%c\n", cp[-1]);
 
-				return;
+				return 1;
 		}
 	}
 
 	/*
-	 * If long listing is specified then turn off column listing.
+	 * If long or numeric listing is specified then turn off column listing.
 	 */
-	if (flags & LSF_LONG)
+	if (flags & (LSF_LONG | LSF_NUMERIC))
 		flags &= ~LSF_COLUMN;
 
 	/*
@@ -153,7 +169,7 @@ do_ls(int argc, const char ** argv)
 		if ((flags & LSF_DIR) || !isDirectory(argv[i]))
 		{
 			if (!addListName(argv[i]))
-				return;
+				return 1;
 		}
 	}
 
@@ -167,7 +183,7 @@ do_ls(int argc, const char ** argv)
 	 * If directories were being listed as themselves, then we are done.
 	 */
 	if (flags & LSF_DIR)
-		return;
+		return r;
 
 	/*
 	 * Now iterate over the file names processing the directories.
@@ -180,6 +196,7 @@ do_ls(int argc, const char ** argv)
 		if (LSTAT(name, &statBuf) < 0)
 		{
 			perror(name);
+			r = 1;
 
 			continue;
 		}
@@ -226,7 +243,7 @@ do_ls(int argc, const char ** argv)
 			{
 				closedir(dirp);
 
-				return;
+				return 1;
 			}
 		}
 
@@ -239,6 +256,8 @@ do_ls(int argc, const char ** argv)
 		listAllFiles(flags, displayWidth);
 		clearListNames();
 	}
+
+	return r;
 }
 
 
@@ -359,12 +378,6 @@ listFile(
 	int		flagChar;
 	int		usedWidth;
 	char		buf[PATH_LEN];
-	static	char	userName[12];
-	static	int	userId;
-	static	BOOL	userIdKnown;
-	static	char	groupName[12];
-	static	int	groupId;
-	static	BOOL	groupIdKnown;
 
 	mode = statBuf->st_mode;
 
@@ -385,19 +398,22 @@ listFile(
 	}
 
 	/*
-	 * Create the long status line if requested.
+	 * Create the long or numeric status line if requested.
 	 */
-	if (flags & LSF_LONG)
+	if (flags & (LSF_LONG | LSF_NUMERIC))
 	{
 		strcpy(cp, modeString(mode));
 		cp += strlen(cp);
 
-		sprintf(cp, "%3d ", statBuf->st_nlink);
+		sprintf(cp, "%3ld ", (long) statBuf->st_nlink);
 		cp += strlen(cp);
 
 		if (!userIdKnown || (statBuf->st_uid != userId))
 		{
-			pwd = getpwuid(statBuf->st_uid);
+			if (flags & LSF_NUMERIC)
+				pwd = 0;
+			else
+				pwd = getpwuid(statBuf->st_uid);
 
 			if (pwd)
 				strcpy(userName, pwd->pw_name);
@@ -413,7 +429,10 @@ listFile(
 
 		if (!groupIdKnown || (statBuf->st_gid != groupId))
 		{
-			grp = getgrgid(statBuf->st_gid);
+			if (flags & LSF_NUMERIC)
+				grp = 0;
+			else
+				grp = getgrgid(statBuf->st_gid);
 
 			if (grp)
 				strcpy(groupName, grp->gr_name);
