@@ -104,6 +104,18 @@ extern	void	do_lsattr(int argc, const char ** argv);
 extern	void	do_chattr(int argc, const char ** argv);
 #endif
 
+#if	HAVE_LINUX_CHROOT
+extern	void	do_chroot(int argc, const char ** argv);
+#endif
+
+#if	HAVE_LINUX_LOSETUP
+extern	void	do_losetup(int argc, const char ** argv);
+#endif
+
+#if	HAVE_LINUX_PIVOT
+extern	void	do_pivot_root(int argc, const char ** argv);
+extern  int pivot_root(const char *new_root, const char *put_old);
+#endif
 
 /*
  * Global utility routines.

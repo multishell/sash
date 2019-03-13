@@ -18,6 +18,16 @@
 #include <errno.h>
 #include <linux/fs.h>
 
+/* Need to tell loop.h what the actual dev_t type is. */
+#undef dev_t
+#if defined(__alpha) || (defined(__sparc__) && defined(__arch64__))
+#define dev_t unsigned int
+#else
+#define dev_t unsigned short
+#endif
+#include <linux/loop.h>
+#undef dev_t
+#define dev_t dev_t
 
 void
 do_echo(int argc, const char ** argv)
@@ -143,6 +153,28 @@ do_mknod(int argc, const char ** argv)
 		perror(argv[1]);
 }
 
+
+#if HAVE_LINUX_PIVOT
+
+void
+do_pivot_root(int argc, const char ** argv)
+{
+	if (pivot_root(argv[1], argv[2]) < 0)
+		perror("");
+}
+
+#endif
+
+#if HAVE_LINUX_CHROOT
+
+void
+do_chroot(int argc, const char ** argv)
+{
+	if (chroot(argv[1]) < 0)
+		perror("");
+}
+
+#endif
 
 void
 do_rmdir(int argc, const char ** argv)
@@ -1154,5 +1186,63 @@ do_where(int argc, const char ** argv)
 	if (!found)
 		printf("Program \"%s\" not found in PATH\n", program);
 }
+
+#if HAVE_LINUX_LOSETUP
+
+void
+do_losetup(int argc, const char ** argv)
+{
+	int loopfd;
+	int targfd;
+	struct loop_info loopInfo;
+
+	if (!strcmp(argv[1], "-d")) {
+		loopfd = open(argv[2], O_RDWR);
+		if (loopfd < 0) {
+			fprintf(stderr, "Error opening %s: %s\n", argv[2], 
+				strerror(errno));
+			return;
+		}
+
+		if (ioctl(loopfd, LOOP_CLR_FD, 0)) {
+			fprintf(stderr, "Error unassociating device: %s\n", 
+				strerror(errno));
+			return;
+		}
+	}
+
+	loopfd = open(argv[1], O_RDWR);
+	if (loopfd < 0) {
+		fprintf(stderr, "Error opening %s: %s\n", argv[1], 
+			strerror(errno));
+		return;
+	}
+
+	targfd = open(argv[2], O_RDWR);
+	if (targfd < 0) {
+		fprintf(stderr, "Error opening %s: %s\n", argv[2], 
+			strerror(errno));
+		return;
+	}
+
+	if (ioctl(loopfd, LOOP_SET_FD, targfd)) {
+		fprintf(stderr, "Error setting up loopback device: %s\n", 
+			strerror(errno));
+		return;
+	}
+
+	memset(&loopInfo, 0, sizeof(loopInfo));
+	strcpy(loopInfo.lo_name, argv[2]);
+
+	if (ioctl(loopfd, LOOP_SET_STATUS, &loopInfo)) {
+		fprintf(stderr, "Error setting up loopback device: %s\n", 
+			strerror(errno));
+		return;
+	}
+
+	return;
+}
+
+#endif
 
 /* END CODE */
