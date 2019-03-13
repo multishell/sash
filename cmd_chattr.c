@@ -12,7 +12,7 @@
 
 #include <sys/ioctl.h>
 #include <sys/types.h>
-#include <linux/ext2_fs.h>
+#include <ext2fs/ext2_fs.h>
 
 #include "sash.h"
 
