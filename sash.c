@@ -15,7 +15,7 @@
 #include "sash.h"
 
 
-static const char * const	version = "3.6";
+static const char * const	version = "3.6-fb";
 
 
 /*
@@ -107,6 +107,14 @@ static const CommandEntry	commandEntryTable[] =
 		"srcName ... destName"
 	},
 
+#ifdef	HAVE_LINUX_CHROOT
+	{
+		"-chroot",	do_chroot,	2,	2,
+		"change root file system",
+		"new_root_dir"
+	},
+#endif
+
 	{
 		"-dd",		do_dd,		3,	INFINITE_ARGS,
 		"Copy data between two files",
@@ -181,6 +189,14 @@ static const CommandEntry	commandEntryTable[] =
 		"[-sig] pid ..."
 	},
 
+#ifdef	HAVE_LINUX_LOSETUP
+	{
+		"-losetup",	do_losetup,	3,	3,
+		"Associate a loopback device with a file",
+		"[-d] device\n       -losetup device filename"
+	},
+#endif
+
 	{
 		"-ln",		do_ln,		3,	INFINITE_ARGS,
 		"Link one fileName to another",
@@ -236,6 +252,14 @@ static const CommandEntry	commandEntryTable[] =
 		"Move or rename files",
 		"srcName ... destName"
 	},
+
+#ifdef	HAVE_LINUX_PIVOT
+	{
+		"-pivot_root",	do_pivot_root,	3,	3,
+		"pivot the root file system",
+		"new_dir old_dir"
+	},
+#endif
 
 	{
 		"-printenv",	do_printenv,	1,	2,
@@ -383,6 +407,7 @@ static	void	childProcess(const char * cmd);
 static	void	showPrompt(void);
 static	void	usage(void);
 static	Alias *	findAlias(const char * name);
+static	void	expandVariable(char * name);
 
 
 /*
@@ -485,7 +510,11 @@ main(int argc, const char ** argv)
 	 * No more arguments are allowed.
 	 */
 	if (argc > 0)
-		usage();
+		if ((access(*argv, 0) == 0) || (errno != ENOENT)) {
+			readFile(*argv++);
+			argc--;
+			return 0;
+		}
 
 	/*
 	 * Default our path if it is not set.
@@ -700,6 +729,11 @@ command(const char * cmd)
 
 		cmd = newCommand;
 	}
+
+	/*
+	 * Expand simple environment variables
+	 */
+	while (strstr(cmd, "$(")) expandVariable((char *)cmd);
 
 	/*
 	 * Now look for the command in the builtin table, and execute
@@ -1273,6 +1307,31 @@ usage(void)
 	fprintf(stderr, "Usage: sash [-a] [-q] [-f fileName] [-c command] [-p prompt]\n");
 
 	exit(1);
+}
+
+/*
+ * Expand one environment variable: Syntax $(VAR)
+ */
+static void
+expandVariable(char * cmd)
+{
+	char	tmp[CMD_LEN];
+	char 	*cp;
+	char	*ep;
+
+	strcpy(tmp, cmd);
+	cp = strstr(tmp, "$(");
+	if (cp) {
+		*cp++ = '\0';
+		strcpy(cmd, tmp);
+		ep = ++cp;
+		while (*ep && (*ep != ')')) ep++;
+		if (*ep == ')') *ep++ = '\0';
+		cp = getenv(cp);
+		if (cp) strcat(cmd, cp);
+		strcat(cmd, ep);
+	}
+	return;
 }
 
 /* END CODE */
