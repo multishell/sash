@@ -5,7 +5,7 @@
  * provided that this copyright notice remains intact.
  *
  * Modified:
- * Copyright (c) 1999 by David I. Bell
+ * Copyright (c) 2002 by David I. Bell
  * Permission is granted to use, distribute, or modify this source,
  * provided that this copyright notice remains intact.
  *

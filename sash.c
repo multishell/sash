@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 by David I. Bell
+ * Copyright (c) 2002 by David I. Bell
  * Permission is granted to use, distribute, or modify this source,
  * provided that this copyright notice remains intact.
  *
@@ -15,7 +15,7 @@
 #include "sash.h"
 
 
-static const char * const	version = "3.4";
+static const char * const	version = "3.5";
 
 
 /*
@@ -69,7 +69,7 @@ static const CommandEntry	commandEntryTable[] =
 		"[dirName]"
 	},
 
-#ifdef	HAVE_EXT2
+#if	HAVE_LINUX_ATTR
 	{
 		"-chattr",	do_chattr,	3,	INFINITE_ARGS,
 		"Change ext2 file attributes",
@@ -155,7 +155,7 @@ static const CommandEntry	commandEntryTable[] =
 		"[-in] word fileName ..."
 	},
 
-#ifdef	HAVE_GZIP
+#if	HAVE_GZIP
 	{
 		"-gunzip",	do_gunzip,	2,	INFINITE_ARGS,
 		"Uncompress files which were saved in GZIP or compress format",
@@ -193,7 +193,7 @@ static const CommandEntry	commandEntryTable[] =
 		"[-lidFC] fileName ..."
 	},
 
-#ifdef	HAVE_EXT2
+#if	HAVE_LINUX_ATTR
 	{
 		"-lsattr",	do_lsattr,	2,	INFINITE_ARGS,
 		"List ext2 file attributes",
@@ -222,7 +222,11 @@ static const CommandEntry	commandEntryTable[] =
 	{
 		"-mount",	do_mount,	3,	INFINITE_ARGS,
 		"Mount or remount a filesystem on a directory",
+#if	HAVE_LINUX_MOUNT
 		"[-t type] [-r] [-m] devName dirName"
+#else
+		"[-t type] devName dirName"
+#endif
 	},
 
 	{

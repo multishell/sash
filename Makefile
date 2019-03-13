@@ -2,10 +2,21 @@
 # Makefile for sash
 #
 # The HAVE_GZIP definition adds the -gzip and -gunzip commands.
-# The HAVE_EXT2 definition adds the -chattr and -lsattr comamnds.
+# The HAVE_LINUX_ATTR definition adds the -chattr and -lsattr commands.
+# The HAVE_LINUX_MOUNT definition adds -r, -m options to the -mount command.
+# The MOUNT_TYPE definition sets the default file system type for -mount.
 #
+HAVE_GZIP		= 1
+HAVE_LINUX_ATTR		= 1
+HAVE_LINUX_MOUNT	= 1
+MOUNT_TYPE		= '"ext3"'
 
-CFLAGS = -O3 -Wall -Wmissing-prototypes -DHAVE_GZIP -DHAVE_EXT2
+CFLAGS = -O3 -Wall -Wmissing-prototypes \
+	-DHAVE_GZIP=$(HAVE_GZIP) \
+	-DHAVE_LINUX_ATTR=$(HAVE_LINUX_ATTR) \
+	-DHAVE_LINUX_MOUNT=$(HAVE_LINUX_MOUNT) \
+	-DMOUNT_TYPE=$(MOUNT_TYPE)
+
 LDFLAGS = -static -s
 LIBS = -lz
 

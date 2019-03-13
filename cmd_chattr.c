@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 by David I. Bell
+ * Copyright (c) 2002 by David I. Bell
  * Permission is granted to use, distribute, or modify this source,
  * provided that this copyright notice remains intact.
  *
@@ -8,7 +8,7 @@
  * They manipulate the important ext2 file system file attribute flags.
  */
 
-#ifdef	HAVE_EXT2
+#if	HAVE_LINUX_ATTR
 
 #include <sys/ioctl.h>
 #include <sys/types.h>

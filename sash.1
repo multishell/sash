@@ -113,11 +113,12 @@ is absent, then the current directory is changed
 to the user's home directory (value of the $HOME environment variable).
 .TP
 .B -chattr [+i] [-i] [+a] [-a] fileName ...
-Change the attributes of the specified files on the ext2 file system.
+Change the attributes of the specified files on an ext2 or ext3 file system.
 Using a plus sign adds the specified attribute for the files.
 Using a minus sign removes the specified attributes for the files.
 The 'i' attribute makes a file immutable so that it cannot be changed.
 The 'a' attribute makes a file append-only.
+This command is only available on Linux.
 .TP
 .B -chgrp gid fileName ...
 Change the group id for the specified list of files.  The
@@ -263,6 +264,10 @@ and the uncompressed version of that input file is created as the output
 path exactly as specified.
 If the output path is a block or character device, then the uncompressed
 versions of the input files are concatenated to the device.
+.sp
+This command is only available if
+.B sash
+was compiled to use the gzip library.
 .TP
 .B -gzip inputFileName ... [-o outputPath]
 Compresses one or more files using the
@@ -288,6 +293,10 @@ modified as described above.
 If the output path is not a directory, then only one input file is allowed,
 and the compressed version of that input file is created as the output
 path exactly as specified.
+.sp
+This command is only available if
+.B sash
+was compiled to use the gzip library.
 .TP
 .B help [word]
 Displays a list of built-in commands along with their usage strings.
@@ -328,10 +337,11 @@ The -C option displays the file names in a multi-column format.
 The width of the output is calculated using the COLS environment variable.
 .TP
 .B -lsattr fileName ...
-Display attributes for the specified files on the ext2 file system.
+Display attributes for the specified files on an ext2 or ext3 file system.
 The letter 'i' indicates that the file is immutable and cannot change.
 The letter 'a' indicates that the file is append-only.
 Dashes are shown where the attributes are not set.
+This command is only available on Linux.
 .TP
 .B -mkdir dirName ...
 Creates the specified directories.  They are created with the
@@ -359,9 +369,10 @@ LINES and COLS can be used to set the page size.
 .TP
 .B -mount [-t type] [-r] [-m] devName dirName
 Mount a filesystem on a directory name.  The -t option specifies the
-type of filesystem being mounted, and defaults to "ext2".
+type of filesystem being mounted, and defaults to "ext3" for Linux.
 The -r option indicates to mount the filesystem read-only.
 The -m option indicates to remount an already mounted filesystem.
+The -r and -m options are only available on Linux.
 .TP
 .B -mv srcName ... destName
 Moves one or more files from the
@@ -475,6 +486,7 @@ This section contains some useful information about using
 with
 .B lilo
 to perform system recovery in some situations.
+Similar concepts should exist for other boot loaders and operating systems.
 .PP
 When important shared libraries are being upgraded,
 it might be a good idea to have
@@ -525,5 +537,5 @@ but aren't built-in to
 .nf
 David I. Bell
 dbell@canb.auug.org.au
-2 October 1999
+7 March 2002
 .fi

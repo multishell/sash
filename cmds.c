@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 by David I. Bell
+ * Copyright (c) 2002 by David I. Bell
  * Permission is granted to use, distribute, or modify this source,
  * provided that this copyright notice remains intact.
  *
@@ -16,7 +16,10 @@
 #include <grp.h>
 #include <utime.h>
 #include <errno.h>
+
+#if	HAVE_LINUX_MOUNT
 #include <linux/fs.h>
+#endif
 
 
 void
@@ -511,8 +514,14 @@ do_mount(int argc, const char ** argv)
 
 	argc--;
 	argv++;
-	type = "ext2";
+
+	type = MOUNT_TYPE;
+
+#if	HAVE_LINUX_MOUNT
 	flags = MS_MGC_VAL;
+#else
+	flags = 0;
+#endif
 
 	while ((argc > 0) && (**argv == '-'))
 	{
@@ -533,6 +542,7 @@ do_mount(int argc, const char ** argv)
 				argc--;
 				break;
 
+#if	HAVE_LINUX_MOUNT
 			case 'r':
 				flags |= MS_RDONLY;
 				break;
@@ -540,6 +550,7 @@ do_mount(int argc, const char ** argv)
 			case 'm':
 				flags |= MS_REMOUNT;
 				break;
+#endif
 
 			default:
 				fprintf(stderr, "Unknown option\n");

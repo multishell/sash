@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 by David I. Bell
+ * Copyright (c) 2002 by David I. Bell
  * Permission is granted to use, distribute, or modify this source,
  * provided that this copyright notice remains intact.
  *
@@ -94,12 +94,12 @@ extern	void	do_find(int argc, const char ** argv);
 extern	void	do_ed(int argc, const char ** argv);
 extern	void	do_where(int argc, const char ** argv);
 
-#ifdef	HAVE_GZIP
+#if	HAVE_GZIP
 extern	void	do_gzip(int argc, const char ** argv);
 extern	void	do_gunzip(int argc, const char ** argv);
 #endif
 
-#ifdef	HAVE_EXT2
+#if	HAVE_LINUX_ATTR
 extern	void	do_lsattr(int argc, const char ** argv);
 extern	void	do_chattr(int argc, const char ** argv);
 #endif
