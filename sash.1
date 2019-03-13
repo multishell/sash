@@ -2,7 +2,7 @@
 .SH NAME
 sash \- stand-alone shell with built-in commands
 .SH SYNOPSYS
-.B sash [-c command] [-p prompt] [-q] [-a]
+.B sash [-c command] [-f fileName ] [-p prompt] [-q] [-a]
 .SH DESCRIPTION
 The
 .B sash
@@ -367,12 +367,15 @@ to the next file, 'q' and a return to quit the command completely,
 or just a return to go to the next page.  The environment variables
 LINES and COLS can be used to set the page size.
 .TP
-.B -mount [-t type] [-r] [-m] devName dirName
-Mount a filesystem on a directory name.  The -t option specifies the
-type of filesystem being mounted, and defaults to "ext3" for Linux.
+.B -mount [-t type] [-r] [-s] [-e] [-m] devName dirName
+Mount a filesystem on a directory name.
+The -t option specifies the type of filesystem being mounted,
+and defaults to "ext3" for Linux and "ffs" for BSD.
 The -r option indicates to mount the filesystem read-only.
+The -s option indicates to mount the filesystem no-suid.
+The -e option indicates to mount the filesystem no-exec.
 The -m option indicates to remount an already mounted filesystem.
-The -r and -m options are only available on Linux.
+The -m option is only available on Linux.
 .TP
 .B -mv srcName ... destName
 Moves one or more files from the
@@ -451,10 +454,12 @@ permissions of newly created files.  If
 is not given, then the
 current umask value is printed.  The mask is an octal value.
 .TP
-.B -umount fileName
+.B -umount [-f] fileName
 Unmounts a file system.  The file name can either be the device name
 which is mounted, or else the directory name which the file system
 is mounted onto.
+The -f option unmounts the filesystem even if it is being used.
+The -f option is only available on BSD.
 .TP
 .B unalias name
 Remove the definition for the specified alias.
@@ -466,8 +471,18 @@ then the reason is also printed.
 .SH OPTIONS
 There are several command line options to
 .BR sash .
+.PP
 The -c option executes the next argument as a command (including embedded
 spaces to separate the arguments of the command), and then exits.
+.PP
+The -f option executes the commands contained in the file name specified
+by the next argument, and then exits.
+This feature can be used to create executable scripts for
+.B sash
+by starting the script file with a line similar to:
+.nf
+	#! /bin/sash -f
+.fi
 .PP
 The -p option takes the next argument as the prompt string to be used
 when prompting for commands.
@@ -476,6 +491,7 @@ The -q option makes
 .B sash
 quiet, which simply means that it doesn't print its introduction line
 when it starts.
+This option is also implied if the -c or -f options are used.
 .PP
 The -a option creates aliases for the built-in commands so
 that they replace the corresponding standard commands.

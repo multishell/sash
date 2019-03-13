@@ -550,8 +550,28 @@ do_mount(int argc, const char ** argv)
 			case 'm':
 				flags |= MS_REMOUNT;
 				break;
-#endif
 
+			case 's':
+				flags |= MS_NOSUID;
+				break;
+
+			case 'e':
+				flags |= MS_NOEXEC;
+				break;
+
+#elif	HAVE_BSD_MOUNT
+			case 'r':
+				flags |= MNT_RDONLY;
+				break;
+
+			case 's':
+				flags |= MNT_NOSUID;
+				break;
+
+			case 'e':
+				flags |= MNT_NOEXEC;
+				break;
+#endif
 			default:
 				fprintf(stderr, "Unknown option\n");
 
@@ -566,16 +586,83 @@ do_mount(int argc, const char ** argv)
 		return;
 	}
 
-	if (mount(argv[0], argv[1], type, flags, 0) < 0)
-		perror("mount failed");
+#if	HAVE_LINUX_MOUNT
+
+ 	if (mount(argv[0], argv[1], type, flags, 0) < 0)
+ 		perror("mount failed");
+
+#elif	HAVE_BSD_MOUNT
+	{
+		struct	    ufs_args ufs;
+		struct	    adosfs_args adosfs;
+		struct	    iso_args iso;
+		struct	    mfs_args mfs;
+		struct	    msdosfs_args msdosfs;
+		void *	    args;
+
+		if(!strcmp(type, "ffs") || !strcmp(type, "ufs")) {
+			ufs.fspec = (char*) argv[0];
+			args = &ufs;
+		} else if(!strcmp(type, "adosfs")) {
+			adosfs.fspec = (char*) argv[0];
+			adosfs.uid = 0;
+			adosfs.gid = 0;
+			args = &adosfs;
+		} else if(!strcmp(type, "cd9660")) {
+			iso.fspec = (char*) argv[0];
+			args = &iso;
+		} else if(!strcmp(type, "mfs")) {
+			mfs.fspec = (char*) argv[0];
+			args = &mfs;
+		} else if(!strcmp(type, "msdos")) {
+			msdosfs.fspec = (char*) argv[0];
+			msdosfs.uid = 0;
+			msdosfs.gid = 0;
+			args = &msdosfs;
+		} else {
+			fprintf(stderr, "Unknown filesystem type: %s", type);
+			fprintf(stderr,
+			    "Supported: ffs ufs adosfs cd9660 mfs msdos\n");
+			return;
+		}
+
+		if (mount(type, argv[1], flags, args) < 0)
+		        perror(argv[0]);
+	}
+#endif
 }
 
 
 void
 do_umount(int argc, const char ** argv)
 {
+#if	HAVE_LINUX_MOUNT
 	if (umount(argv[1]) < 0)
 		perror(argv[1]);
+#elif	HAVE_BSD_MOUNT
+	{
+		const char *	str;
+		int		flags = 0;
+
+		for (argc--, argv++;
+		    (argc > 0) && (**argv == '-');) {
+			argc--;
+			str = *argv++;
+
+			while (*++str) {
+				switch (*str)
+				{
+					case 'f':
+						flags = MNT_FORCE;
+						break;
+				}
+			}
+		}
+
+		if (unmount(argv[0], flags) < 0)
+			perror(argv[0]);
+	}
+#endif
 }
 
 

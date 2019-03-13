@@ -15,7 +15,7 @@
 #include "sash.h"
 
 
-static const char * const	version = "3.5";
+static const char * const	version = "3.6";
 
 
 /*
@@ -223,7 +223,9 @@ static const CommandEntry	commandEntryTable[] =
 		"-mount",	do_mount,	3,	INFINITE_ARGS,
 		"Mount or remount a filesystem on a directory",
 #if	HAVE_LINUX_MOUNT
-		"[-t type] [-r] [-m] devName dirName"
+		"[-t type] [-r] [-s] [-e] [-m] devName dirName"
+#elif	HAVE_BSD_MOUNT
+		"[-t type] [-r] [-s] [-e] devName dirName"
 #else
 		"[-t type] devName dirName"
 #endif
@@ -314,9 +316,15 @@ static const CommandEntry	commandEntryTable[] =
 	},
 
 	{
+#if	HAVE_BSD_MOUNT
+		"-umount",	do_umount,	2,	3,
+		"Unmount a filesystem",
+		"[-f] fileName"
+#else
 		"-umount",	do_umount,	2,	2,
 		"Unmount a filesystem",
 		"fileName"
+#endif
 	},
 
 	{
@@ -388,11 +396,13 @@ main(int argc, const char ** argv)
 {
 	const char *	cp;
 	const char *	singleCommand;
+	const char *	commandFile;
 	BOOL		quietFlag;
 	BOOL		aliasFlag;
 	char		buf[PATH_LEN];
 
 	singleCommand = NULL;
+	commandFile = NULL;
 	quietFlag = FALSE;
 	aliasFlag = FALSE;
 
@@ -417,6 +427,21 @@ main(int argc, const char ** argv)
 					usage();
 
 				singleCommand = *argv++;
+				argc--;
+
+				break;
+
+			case 'f':
+				/*
+				 * Execute commands from file.
+				 * This is used for sash script files.
+				 * The quiet flag is also set.
+				 */
+				if ((argc != 1) || commandFile)
+					usage();
+
+				quietFlag = TRUE;
+				commandFile = *argv++;
 				argc--;
 
 				break;
@@ -514,9 +539,9 @@ main(int argc, const char ** argv)
 	}
 
 	/*
-	 * Read commands from stdin.
+	 * Read commands from stdin or from a command file.
 	 */
-	readFile(NULL);
+	readFile(commandFile);
 
 	return 0;
 }
@@ -1245,7 +1270,7 @@ usage(void)
 {
 	fprintf(stderr, "Stand-alone shell (version %s)\n", version);
 	fprintf(stderr, "\n");
-	fprintf(stderr, "Usage: sash [-a] [-q] [-c command] [-p prompt]\n");
+	fprintf(stderr, "Usage: sash [-a] [-q] [-f fileName] [-c command] [-p prompt]\n");
 
 	exit(1);
 }

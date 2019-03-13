@@ -1,4 +1,4 @@
-This is release 3.5 of sash, my stand-alone shell for Linux or other systems.
+This is release 3.6 of sash, my stand-alone shell for Linux or other systems.
 
 The purpose of this program is to make system recovery possible in
 many cases where there are missing shared libraries or executables.
@@ -8,13 +8,10 @@ Read the sash.1 documentation for more details.
 
 Type "make install" to build and install the program and man page.
 
-Some warning messages may appear when compiling cmds.c under Linux from
-the mount.h and fs.h include files.  These warnings can be ignored.
-
 Several options in the Makefile can be changed to build sash for
 other UNIX-like systems.  In particular, dependencies on Linux file
-systems can be removed.
+systems can be removed and the mount command can be configured.
 
 David I. Bell
 dbell@canb.auug.org.au
-7 March 2002
+21 July 2002

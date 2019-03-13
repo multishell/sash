@@ -9,16 +9,22 @@
 #ifndef	SASH_H
 #define	SASH_H
 
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
 #include <memory.h>
-#include <malloc.h>
 #include <time.h>
 #include <ctype.h>
+
+#if __OpenBSD__
+#include <sys/param.h>
+#endif
+
+#if __Linux__
+#include <malloc.h>
+#endif
 
 
 #define	PATH_LEN	1024

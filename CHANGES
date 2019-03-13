@@ -1,0 +1,9 @@
+These are the major changes from version 3.5 to version 3.6:
+
+The -mount and -umount commands have been modified to work for both
+Linux and BSD systems.  Thanks to Wilbern Cobb for the patches.
+
+The -e and -s options for the -mount command have been added.
+
+The -f option was added to the command line so that script files
+using sash can be executed.
