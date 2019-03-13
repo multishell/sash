@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002 by David I. Bell
+ * Copyright (c) 2004 by David I. Bell
  * Permission is granted to use, distribute, or modify this source,
  * provided that this copyright notice remains intact.
  *
@@ -56,8 +56,10 @@ do_dd(int argc, const char ** argv)
 	long		count;
 	long		seekVal;
 	long		skipVal;
-	long		intotal;
-	long		outTotal;
+	long		inFull;
+	long		inPartial;
+	long		outFull;
+	long		outPartial;
 	char *		buf;
 	char		localBuf[BUF_SIZE];
 
@@ -66,7 +68,7 @@ do_dd(int argc, const char ** argv)
 	seekVal = 0;
 	skipVal = 0;
 	blockSize = 512;
-	count = 0x7fffffff;
+	count = -1;
 
 	while (--argc > 0)
 	{
@@ -195,8 +197,10 @@ do_dd(int argc, const char ** argv)
 		}
 	}
 
-	intotal = 0;
-	outTotal = 0;
+	inFull = 0;
+	inPartial = 0;
+	outFull = 0;
+	outPartial = 0;
 
 	inFd = open(inFile, 0);
 
@@ -256,9 +260,15 @@ do_dd(int argc, const char ** argv)
 		}
 	}
 
-	while ((inCc = read(inFd, buf, blockSize)) > 0)
+	inCc = 0;
+
+	while (((count < 0) || (inFull + inPartial < count)) &&
+	       (inCc = read(inFd, buf, blockSize)) > 0)
 	{
-		intotal += inCc;
+		if (inCc < blockSize)
+			inPartial++;
+		else
+			inFull++;
 		cp = buf;
 
 		if (intFlag)
@@ -277,7 +287,10 @@ do_dd(int argc, const char ** argv)
 				goto cleanup;
 			}
 
-			outTotal += outCc;
+			if (outCc < blockSize)
+				outPartial++;
+			else
+				outFull++;
 			cp += outCc;
 			inCc -= outCc;
 		}
@@ -295,11 +308,9 @@ cleanup:
 	if (buf != localBuf)
 		free(buf);
 
-	printf("%ld+%d records in\n", intotal / blockSize,
-		(intotal % blockSize) != 0);
+	printf("%ld+%ld records in\n", inFull, inPartial);
 
-	printf("%ld+%d records out\n", outTotal / blockSize,
-		(outTotal % blockSize) != 0);
+	printf("%ld+%ld records out\n", outFull, outPartial);
 }
 
 

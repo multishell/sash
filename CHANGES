@@ -1,3 +1,8 @@
+These are the major changes from version 3.6 to version 3.7:
+
+A few bugs in the dd command have been fixed.
+
+
 These are the major changes from version 3.5 to version 3.6:
 
 The -mount and -umount commands have been modified to work for both

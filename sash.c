@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002 by David I. Bell
+ * Copyright (c) 2004 by David I. Bell
  * Permission is granted to use, distribute, or modify this source,
  * provided that this copyright notice remains intact.
  *
@@ -15,7 +15,7 @@
 #include "sash.h"
 
 
-static const char * const	version = "3.6";
+static const char * const	version = "3.7";
 
 
 /*
