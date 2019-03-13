@@ -3,12 +3,18 @@
 #
 # The HAVE_GZIP definition adds the -gzip and -gunzip commands.
 # The HAVE_LINUX_ATTR definition adds the -chattr and -lsattr commands.
+# The HAVE_LINUX_CHROOT definition adds the -chroot command.
+# The HAVE_LINUX_PIVOT definition adds the -pivot_root command.
+# The HAVE_LINUX_LOSETUP definition adds the -losetup command.
 # The HAVE_LINUX_MOUNT definition makes -mount and -umount work on Linux.
 # The HAVE_BSD_MOUNT definition makes -mount and -umount work on BSD.
 # The MOUNT_TYPE definition sets the default file system type for -mount.
 #
 HAVE_GZIP		= 1
 HAVE_LINUX_ATTR		= 1
+HAVE_LINUX_CHROOT	= 1
+HAVE_LINUX_LOSETUP	= 1
+HAVE_LINUX_PIVOT	= 1
 HAVE_LINUX_MOUNT	= 1
 HAVE_BSD_MOUNT		= 0
 MOUNT_TYPE		= '"ext3"'
@@ -17,6 +23,9 @@ MOUNT_TYPE		= '"ext3"'
 CFLAGS = -O3 -Wall -Wmissing-prototypes \
 	-DHAVE_GZIP=$(HAVE_GZIP) \
 	-DHAVE_LINUX_ATTR=$(HAVE_LINUX_ATTR) \
+ 	-DHAVE_LINUX_CHROOT=$(HAVE_LINUX_CHROOT) \
+ 	-DHAVE_LINUX_LOSETUP=$(HAVE_LINUX_LOSETUP) \
+ 	-DHAVE_LINUX_PIVOT=$(HAVE_LINUX_PIVOT) \
 	-DHAVE_LINUX_MOUNT=$(HAVE_LINUX_MOUNT) \
 	-DHAVE_BSD_MOUNT=$(HAVE_BSD_MOUNT) \
 	-DMOUNT_TYPE=$(MOUNT_TYPE)
